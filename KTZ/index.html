@@ -1,0 +1,1640 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KTZ Digital Twin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    :root {
+      --accent:#00c49a; --accent2:#0099ff; --warn:#f59e0b;
+      --danger:#ef4444; --success:#22c55e;
+      --font:'Space Grotesk',system-ui,sans-serif;
+      --mono:'JetBrains Mono',monospace; --radius:22px;
+    }
+    [data-theme="dark"] {
+      --bg:#0a0c0f; --bg2:#10131a; --surface:#1c2230; --surface2:#232b3b;
+      --border:rgba(255,255,255,0.07); --border2:rgba(255,255,255,0.14);
+      --text:#e8ecf4; --muted:#6b7a99; --nav-bg:rgba(10,12,15,0.95); --input-bg:#1c2230;
+    }
+    [data-theme="light"] {
+      --bg:#f0f3fa; --bg2:#ffffff; --surface:#ffffff; --surface2:#e8edf7;
+      --border:rgba(0,0,0,0.07); --border2:rgba(0,0,0,0.14);
+      --text:#0f1523; --muted:#7a849e; --nav-bg:rgba(240,243,250,0.95); --input-bg:#e8edf7;
+    }
+    *{box-sizing:border-box;}
+    html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:var(--font);}
+    body{min-height:100vh;overflow:hidden;transition:background .25s,color .25s;}
+
+    .auth-screen{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;background:var(--bg);padding:20px;}
+    .auth-bg-grid{position:fixed;inset:0;z-index:1;background-image:radial-gradient(var(--border) 1px,transparent 1px);background-size:40px 40px;mask-image:radial-gradient(circle at center,black,transparent 80%);pointer-events:none;}
+    .auth-bg-glow{position:fixed;inset:0;z-index:1;pointer-events:none;background:radial-gradient(circle at 20% 30%,rgba(0,196,154,.12),transparent 40%),radial-gradient(circle at 80% 70%,rgba(0,153,255,.10),transparent 40%);}
+    .auth-card{position:relative;z-index:10;background:linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.01));border:1px solid var(--border);border-radius:24px;backdrop-filter:blur(20px);width:100%;max-width:400px;padding:40px;box-shadow:0 40px 100px rgba(0,0,0,0.5);animation:fadeInUp 0.5s ease-out;}
+    @keyframes fadeInUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+    .label-sys{font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--accent);margin-bottom:12px;display:block;}
+    .auth-title{margin:0 0 28px;font-size:26px;font-weight:700;letter-spacing:-1px;}
+    .input-group{display:flex;flex-direction:column;gap:14px;}
+    .field{width:100%;border:1px solid var(--border);background:var(--input-bg);color:var(--text);border-radius:14px;padding:14px 18px;font:inherit;font-size:15px;outline:none;transition:all 0.2s ease;}
+    .field:focus{border-color:var(--accent);background:var(--bg);}
+    .field.error{border-color:var(--danger);}
+    .error-text{color:var(--danger);font-family:var(--mono);font-size:11px;min-height:16px;margin:6px 0 12px;opacity:0;transition:opacity 0.2s;}
+    .btn-submit{width:100%;border:none;background:var(--accent);color:#000;border-radius:14px;padding:16px;cursor:pointer;font:inherit;font-weight:700;font-size:16px;transition:all 0.2s;margin-top:4px;}
+    .btn-submit:hover{filter:brightness(1.1);transform:translateY(-1px);}
+    .auth-footer{margin-top:20px;text-align:center;font-size:14px;color:var(--muted);}
+    .link{color:var(--accent);cursor:pointer;font-weight:600;margin-left:4px;}
+    .auth-theme-btn{position:fixed;top:16px;right:16px;z-index:20;width:40px;height:40px;border-radius:12px;background:var(--surface);border:1px solid var(--border);color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;}
+
+    .shell{min-height:100vh;display:flex;flex-direction:column;background:radial-gradient(circle at 10% 10%,rgba(0,196,154,.10),transparent 24%),radial-gradient(circle at 90% 18%,rgba(0,153,255,.10),transparent 28%),linear-gradient(180deg,var(--bg) 0%,var(--bg2) 100%);}
+    .nav{height:60px;flex:none;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 18px;border-bottom:1px solid var(--border);background:var(--nav-bg);backdrop-filter:blur(12px);z-index:20;}
+    .brand{display:flex;align-items:center;gap:12px;min-width:0;}
+    .mark{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 8px 24px rgba(0,153,255,.16);flex:none;}
+    .brand-text{min-width:0;}
+    .brand-title{font-weight:700;font-size:14px;line-height:1.1;}
+    .brand-sub{font-size:11px;color:var(--muted);font-family:var(--mono);margin-top:2px;}
+    .tabs{display:flex;gap:6px;flex-wrap:wrap;}
+    .tab{border:1px solid transparent;background:transparent;color:var(--muted);border-radius:999px;padding:9px 14px;font:inherit;cursor:pointer;transition:.18s ease;}
+    .tab:hover{color:var(--text);background:var(--surface);border-color:var(--border);}
+    .tab.active{color:var(--accent);background:rgba(0,196,154,.10);border-color:rgba(0,196,154,.18);}
+    .right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;}
+    .lang-group{border:1px solid var(--border);background:rgba(255,255,255,.03);border-radius:999px;overflow:hidden;display:inline-flex;align-items:center;}
+    .lang-btn{border:0;background:transparent;color:var(--muted);padding:9px 12px;cursor:pointer;font:inherit;font-size:12px;}
+    .lang-btn.active{background:rgba(0,153,255,.12);color:var(--text);}
+    .theme-btn{display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;color:var(--text);border:1px solid var(--border);background:rgba(255,255,255,.03);border-radius:999px;font:inherit;}
+    .theme-knob{width:18px;height:18px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 0 0 3px rgba(0,153,255,.08);transition:transform .25s ease;}
+    [data-theme="light"] .theme-knob{transform:translateX(16px);}
+    .user-pill{display:flex;align-items:center;gap:8px;padding:6px 10px 6px 6px;border-radius:999px;border:1px solid var(--border);background:rgba(255,255,255,.03);cursor:default;}
+    .user-avatar{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#000;flex:none;}
+    .user-name{font-size:12px;font-weight:600;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .icon-btn{width:36px;height:36px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.03);color:var(--muted);cursor:pointer;font:inherit;font-size:16px;display:flex;align-items:center;justify-content:center;transition:.18s ease;}
+    .icon-btn:hover{background:var(--surface);color:var(--text);border-color:var(--border2);}
+
+    .main{flex:1;overflow:hidden;position:relative;}
+    .view{position:absolute;inset:0;padding:18px;overflow:auto;display:none;}
+    .view.active{display:block;}
+    .card{background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.02));border:1px solid var(--border);box-shadow:0 20px 50px rgba(0,0,0,.16);border-radius:var(--radius);backdrop-filter:blur(14px);}
+    .home-card{max-width:1100px;margin:0 auto;padding:28px;}
+    .home-hero{display:grid;gap:16px;}
+    .home-kicker{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;width:fit-content;border-radius:999px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--muted);font-size:12px;}
+    .home-title{margin:0;font-size:clamp(28px,4vw,52px);line-height:1.02;letter-spacing:-0.05em;}
+    .home-text{margin:0;color:var(--text);font-size:16px;line-height:1.72;}
+    .home-text p{margin:0 0 14px;}
+    .home-grid{margin-top:20px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;}
+    .mini{padding:16px;border-radius:18px;background:rgba(255,255,255,.04);border:1px solid var(--border);}
+    .mini h3{margin:0 0 8px;font-size:16px;}
+    .mini p{margin:0;color:var(--muted);line-height:1.6;font-size:13px;}
+
+    .tracker-layout{height:calc(100vh - 60px - 36px);display:grid;grid-template-columns:1fr 360px;gap:16px;}
+    .map-wrap,.side-wrap{min-width:0;}
+    .map-panel{position:relative;height:100%;overflow:hidden;}
+    #map{width:100%;height:100%;min-height:320px;}
+    .overlay{position:absolute;top:12px;left:12px;z-index:500;background:linear-gradient(135deg,var(--bg2),var(--surface));border:1px solid var(--border);border-radius:14px;padding:9px 12px;color:var(--muted);font-size:12px;line-height:1.45;pointer-events:none;backdrop-filter:blur(10px);}
+    .overlay .v{color:var(--text);font-weight:700;}
+    .overlay .live{color:var(--success);font-weight:700;display:inline-flex;align-items:center;gap:6px;}
+    .overlay .live::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--success);box-shadow:0 0 10px rgba(34,197,94,.7);}
+    .panel{height:100%;display:flex;flex-direction:column;overflow:hidden;}
+    .panel-header{padding:16px;border-bottom:1px solid var(--border);}
+    .panel-title{font-family:var(--mono);font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--muted);margin-bottom:12px;}
+    .search{width:100%;border:1px solid var(--border);background:var(--input-bg);color:var(--text);border-radius:12px;padding:10px 12px;font:inherit;outline:none;}
+    .search:focus{border-color:rgba(0,153,255,.45);}
+    .train-list{padding:12px;overflow:auto;flex:1;}
+    .train-list::-webkit-scrollbar{width:6px;}
+    .train-list::-webkit-scrollbar-thumb{background:var(--border2);border-radius:999px;}
+    .train-card{border:1px solid var(--border);background:rgba(255,255,255,.03);border-radius:16px;padding:12px;margin-bottom:10px;cursor:pointer;transition:.18s ease;}
+    .train-card:hover{border-color:rgba(0,153,255,.25);transform:translateY(-1px);}
+    .train-card.active{border-color:rgba(0,196,154,.35);background:rgba(0,196,154,.06);}
+    .row1{display:flex;justify-content:space-between;gap:10px;align-items:center;}
+    .id{font-weight:700;font-family:var(--mono);font-size:13px;}
+    .health{font-weight:700;font-size:12px;}
+    .route{margin-top:4px;color:var(--muted);font-size:12px;}
+    .bar{margin-top:10px;height:4px;border-radius:999px;background:rgba(255,255,255,.07);overflow:hidden;}
+    .fill{height:100%;border-radius:inherit;}
+    .detail{border-top:1px solid var(--border);padding:16px;background:rgba(255,255,255,.02);}
+    .detail-title{font-family:var(--mono);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.6px;margin-bottom:10px;}
+    .detail-id{font-weight:800;color:var(--accent);font-family:var(--mono);font-size:16px;}
+    .detail-route{color:var(--muted);margin-top:4px;font-size:12px;}
+    .mini-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:14px;}
+    .mini-card{background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:14px;padding:10px;}
+    .mini-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;}
+    .mini-val{font-size:20px;font-weight:800;font-family:var(--mono);}
+    .btn{border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--text);border-radius:999px;padding:10px 14px;cursor:pointer;font:inherit;font-size:13px;transition:.18s;}
+    .btn:hover{background:var(--surface);}
+    .btn.primary{background:linear-gradient(135deg,rgba(0,196,154,.18),rgba(0,153,255,.18));border-color:rgba(0,196,154,.22);}
+    .btn.detail-btn{background:rgba(0,153,255,.10);border-color:rgba(0,153,255,.3);color:var(--accent2);}
+    .btn.detail-btn:hover{background:rgba(0,153,255,.22);}
+    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;}
+    .small{color:var(--muted);font-size:12px;line-height:1.6;margin-top:10px;}
+
+    .modal-overlay{position:fixed;inset:0;z-index:900;background:rgba(0,0,0,0.6);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .2s ease;}
+    .modal-overlay.open{opacity:1;pointer-events:all;}
+    .modal{background:var(--bg2);border:1px solid var(--border2);border-radius:20px;padding:32px;width:100%;max-width:480px;box-shadow:0 30px 80px rgba(0,0,0,.5);transform:translateY(16px);transition:transform .25s ease;max-height:90vh;overflow-y:auto;}
+    .modal-overlay.open .modal{transform:translateY(0);}
+    .modal-lg{max-width:640px;}
+    .modal-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;}
+    .modal-title{font-size:20px;font-weight:700;margin:0;}
+    .modal-close{width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;flex:none;}
+    .modal-close:hover{background:var(--surface);color:var(--text);}
+
+    .dm-id{font-family:var(--mono);font-size:22px;font-weight:800;color:var(--accent);}
+    .dm-route{color:var(--muted);font-size:13px;margin-top:4px;margin-bottom:20px;}
+    .dm-section{margin-bottom:20px;}
+    .dm-section-title{font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);}
+    .dm-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;}
+    .dm-stat{background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:14px;padding:12px;}
+    .dm-stat-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+    .dm-stat-val{font-size:18px;font-weight:800;font-family:var(--mono);}
+    .sbar{height:5px;border-radius:999px;background:rgba(255,255,255,.07);overflow:hidden;margin-top:6px;}
+    .sbar-fill{height:100%;border-radius:inherit;transition:width .4s ease;}
+    .dm-log{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:12px;padding:4px 12px;}
+    .log-row{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px;}
+    .log-row:last-child{border-bottom:none;}
+    .log-time{font-family:var(--mono);color:var(--muted);min-width:44px;flex:none;}
+    .log-ok{color:var(--success);}
+    .log-warn{color:var(--warn);}
+    .log-err{color:var(--danger);}
+
+    .support-topic{border:1px solid var(--border);background:rgba(255,255,255,.03);border-radius:14px;padding:14px;margin-bottom:10px;cursor:pointer;transition:.18s;}
+    .support-topic:hover{border-color:rgba(0,196,154,.3);background:rgba(0,196,154,.06);}
+    .support-topic h4{margin:0 0 4px;font-size:14px;}
+    .support-topic p{margin:0;font-size:12px;color:var(--muted);}
+    .support-form{margin-top:16px;display:flex;flex-direction:column;gap:12px;}
+    .support-textarea{width:100%;min-height:100px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);border-radius:14px;padding:14px;font:inherit;font-size:14px;outline:none;resize:vertical;}
+    .support-textarea:focus{border-color:var(--accent);}
+    .btn-accent{border:none;background:var(--accent);color:#000;border-radius:12px;padding:13px 20px;cursor:pointer;font:inherit;font-weight:700;font-size:14px;transition:.18s;}
+    .btn-accent:hover{filter:brightness(1.1);}
+    .btn-danger{border:none;background:var(--danger);color:#fff;border-radius:12px;padding:13px 20px;cursor:pointer;font:inherit;font-weight:700;font-size:14px;transition:.18s;}
+    .btn-danger:hover{filter:brightness(1.1);}
+    .btn-ghost{border:1px solid var(--border);background:transparent;color:var(--text);border-radius:12px;padding:13px 20px;cursor:pointer;font:inherit;font-size:14px;transition:.18s;}
+    .btn-ghost:hover{background:var(--surface);}
+    .modal-actions{display:flex;gap:10px;margin-top:20px;}
+    .success-msg{color:var(--success);font-family:var(--mono);font-size:12px;text-align:center;padding:8px 0 0;}
+
+    .leaflet-control-attribution{display:none !important;}
+    [data-theme="dark"] .leaflet-tile{filter:brightness(.92) contrast(1.08) saturate(.96);}
+    .leaflet-control-zoom a{background:var(--surface) !important;color:var(--text) !important;border-color:var(--border2) !important;}
+    .leaflet-popup-content-wrapper{background:var(--bg2) !important;border:1px solid var(--border2) !important;border-radius:14px !important;color:var(--text) !important;box-shadow:0 20px 50px rgba(0,0,0,.2) !important;}
+    .leaflet-popup-tip{background:var(--bg2) !important;}
+    .leaflet-popup-content{margin:12px 14px !important;}
+    .popup-id{font-family:var(--mono);font-weight:800;margin-bottom:4px;}
+    .popup-route{font-size:12px;color:var(--muted);margin-bottom:8px;}
+    .popup-row{display:flex;justify-content:space-between;gap:12px;margin-top:4px;font-size:12px;}
+    .popup-key{color:var(--muted);}
+    .popup-val{font-weight:700;}
+    .city-label{background:transparent !important;border:none !important;box-shadow:none !important;font-family:var(--mono) !important;color:var(--muted) !important;font-size:10px !important;}
+
+
+    .cabin-layout{display:grid;grid-template-columns:260px 1fr 260px;gap:14px;max-width:1600px;margin:0 auto;}
+    .cabin-col{display:flex;flex-direction:column;gap:12px;}
+    .health-ring-wrap{display:flex;flex-direction:column;align-items:center;padding:18px 12px 12px;}
+    .health-ring-svg{width:130px;height:130px;}
+    .ring-bg{fill:none;stroke:rgba(255,255,255,0.07);stroke-width:10;}
+    .ring-fill{fill:none;stroke-width:10;stroke-linecap:round;transition:stroke-dashoffset 0.6s ease,stroke 0.4s;}
+    .ring-text{font-family:var(--mono);font-size:22px;font-weight:800;dominant-baseline:middle;text-anchor:middle;fill:var(--text);}
+    .ring-sub{font-family:var(--mono);font-size:9px;fill:var(--muted);dominant-baseline:middle;text-anchor:middle;}
+    .ring-grade{font-family:var(--mono);font-size:12px;font-weight:700;dominant-baseline:middle;text-anchor:middle;}
+    .cabin-panel{padding:14px;border-radius:18px;background:rgba(255,255,255,.04);border:1px solid var(--border);}
+    .cabin-panel-title{font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+    .cabin-panel-title span{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);}
+    .tele-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);}
+    .tele-row:last-child{border-bottom:none;}
+    .tele-lbl{font-size:11px;color:var(--muted);}
+    .tele-val{font-family:var(--mono);font-size:13px;font-weight:700;}
+    .tele-bar{height:3px;border-radius:999px;background:rgba(255,255,255,.07);margin-top:3px;overflow:hidden;}
+    .tele-bar-fill{height:100%;border-radius:inherit;transition:width .4s ease;}
+    .alert-item{padding:8px 10px;border-radius:10px;margin-bottom:6px;font-size:11px;line-height:1.5;display:flex;gap:8px;align-items:flex-start;}
+    .alert-item:last-child{margin-bottom:0;}
+    .alert-err{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.25);}
+    .alert-warn{background:rgba(245,158,11,.10);border:1px solid rgba(245,158,11,.22);}
+    .alert-ok{background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.18);}
+    .alert-dot{width:7px;height:7px;border-radius:50%;flex:none;margin-top:3px;}
+    .alert-err .alert-dot{background:var(--danger);}
+    .alert-warn .alert-dot{background:var(--warn);}
+    .alert-ok .alert-dot{background:var(--success);}
+    .gauge-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+    .gauge-item{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:12px;padding:10px;text-align:center;}
+    .gauge-val{font-family:var(--mono);font-size:20px;font-weight:800;line-height:1;}
+    .gauge-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:3px;}
+    .loco-selector{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+    .loco-btn{border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:8px;padding:5px 10px;font:inherit;font-size:11px;cursor:pointer;transition:.15s;}
+    .loco-btn:hover{color:var(--text);border-color:var(--border2);}
+    .loco-btn.active{background:rgba(0,196,154,.12);color:var(--accent);border-color:rgba(0,196,154,.3);}
+    .chart-wrap{position:relative;height:70px;width:100%;margin-top:6px;}
+    canvas.sparkline{width:100%!important;height:70px!important;}
+    .center-panel{display:flex;flex-direction:column;gap:12px;}
+    .speed-big{text-align:center;padding:20px 10px 12px;}
+    .speed-num{font-family:var(--mono);font-size:64px;font-weight:900;line-height:1;letter-spacing:-3px;}
+    .speed-unit{font-family:var(--mono);font-size:14px;color:var(--muted);}
+    .speed-sub{font-size:12px;color:var(--muted);margin-top:4px;}
+    .systems-strip{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;}
+    .sys-cell{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:12px;padding:10px 6px;text-align:center;}
+    .sys-icon{font-size:18px;margin-bottom:4px;}
+    .sys-name{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;}
+    .sys-val{font-family:var(--mono);font-size:13px;font-weight:800;margin-top:2px;}
+    .sys-bar{height:3px;border-radius:999px;background:rgba(255,255,255,.07);overflow:hidden;margin-top:4px;}
+    .sys-bar-fill{height:100%;border-radius:inherit;}
+    .replay-bar{display:flex;gap:8px;align-items:center;padding:10px 14px;border-radius:14px;background:rgba(255,255,255,.03);border:1px solid var(--border);}
+    .replay-btn{width:30px;height:30px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,.05);color:var(--text);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:.15s;}
+    .replay-btn:hover{background:var(--surface);}
+    .replay-btn.active{background:rgba(0,196,154,.15);color:var(--accent);border-color:rgba(0,196,154,.35);}
+    .replay-slider{flex:1;accent-color:var(--accent);cursor:pointer;}
+    .replay-time{font-family:var(--mono);font-size:11px;color:var(--muted);min-width:42px;text-align:right;}
+    .replay-speed{font-family:var(--mono);font-size:10px;background:rgba(0,196,154,.1);color:var(--accent);border:1px solid rgba(0,196,154,.2);border-radius:6px;padding:3px 7px;cursor:pointer;}
+    .dm-telemetry{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px;}
+    .dm-tele-item{background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:12px;padding:10px;text-align:center;}
+    .dm-tele-val{font-family:var(--mono);font-size:15px;font-weight:800;}
+    .dm-tele-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:2px;}
+    .dm-fault-item{display:flex;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;}
+    .dm-fault-item:last-child{border-bottom:none;}
+    .fault-code{font-family:var(--mono);font-size:10px;background:rgba(239,68,68,.15);color:var(--danger);border-radius:5px;padding:2px 6px;flex:none;}
+    .fault-warn-code{background:rgba(245,158,11,.15);color:var(--warn);}
+    @media(max-width:1200px){.cabin-layout{grid-template-columns:1fr;}.systems-strip{grid-template-columns:repeat(3,1fr);}.dm-telemetry{grid-template-columns:repeat(2,1fr);}}
+    @media(max-width:1120px){body{overflow:auto;}.tracker-layout{grid-template-columns:1fr;height:auto;}#map{min-height:420px;height:55vh;}.panel{min-height:480px;}.home-grid{grid-template-columns:1fr;}.dm-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
+    .user-pill{cursor:pointer;}
+    .profile-chip{display:inline-flex;align-items:center;gap:8px;width:fit-content;padding:8px 12px;border-radius:999px;border:1px solid var(--border);background:rgba(255,255,255,.04);font-size:12px;font-weight:700;}
+    .profile-card{padding:12px 14px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid var(--border);}
+    .profile-lbl{font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;font-family:var(--mono);}
+    .profile-val{font-weight:700;font-size:14px;line-height:1.5;}
+    @media(max-width:700px){.nav{height:auto;padding:12px;align-items:flex-start;flex-direction:column;}.right{width:100%;justify-content:space-between;}.view{padding:12px;}.home-card{padding:18px;}.tracker-layout{gap:12px;}.dm-grid{grid-template-columns:1fr 1fr;}}
+  </style>
+</head>
+<body>
+
+<div id="authScreen" class="auth-screen">
+  <div class="auth-bg-grid"></div>
+  <div class="auth-bg-glow"></div>
+  <button class="auth-theme-btn" onclick="toggleAuthTheme()">🌓</button>
+  <div class="auth-card">
+    <div id="loginSection">
+      <span class="label-sys">// system_access</span>
+      <h2 class="auth-title" id="authLoginTitle">Вход в систему</h2>
+      <div class="input-group">
+        <input type="text" id="loginUser" class="field" placeholder="ID или Логин">
+        <input type="password" id="loginPass" class="field" placeholder="Пароль">
+      </div>
+      <div id="loginError" class="error-text"></div>
+      <button class="btn-submit" onclick="handleLogin()" id="btnLogin">Войти</button>
+      <div class="auth-footer">Нет аккаунта? <span class="link" onclick="switchForm('reg')" id="linkToReg">Регистрация</span></div>
+    </div>
+    <div id="regSection" style="display:none;">
+      <span class="label-sys">// new_identity</span>
+      <h2 class="auth-title" id="authRegTitle">Регистрация</h2>
+      <div class="input-group">
+        <input type="text" id="regName" class="field" placeholder="Ваше ФИО">
+        <input type="email" id="regEmail" class="field" placeholder="Email (с @)">
+        <input type="password" id="regPass" class="field" placeholder="Пароль (мин. 6 симв.)">
+      </div>
+      <div id="regError" class="error-text"></div>
+      <button class="btn-submit" onclick="handleRegister()" id="btnRegister">Создать аккаунт</button>
+      <div class="auth-footer">Уже есть доступ? <span class="link" onclick="switchForm('login')" id="linkToLogin">Войти</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="detailModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div>
+        <div class="dm-id" id="dmId"></div>
+        <div class="dm-route" id="dmRoute"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal('detailModal')">✕</button>
+    </div>
+    <div id="dmBody"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="supportModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title" id="supportTitle">Техническая поддержка</h3>
+      <button class="modal-close" onclick="closeModal('supportModal')">✕</button>
+    </div>
+    <div id="supportTopics">
+      <p style="font-size:13px;color:var(--muted);margin:0 0 14px;" id="supportSubtitle">Выберите тему обращения:</p>
+      <div class="support-topic" onclick="selectTopic('bug')"><h4 id="stBugTitle">🐛 Сообщить об ошибке</h4><p id="stBugText">Что-то работает не так</p></div>
+      <div class="support-topic" onclick="selectTopic('access')"><h4 id="stAccessTitle">🔐 Проблемы с доступом</h4><p id="stAccessText">Не могу войти или зарегистрироваться</p></div>
+      <div class="support-topic" onclick="selectTopic('data')"><h4 id="stDataTitle">📊 Вопрос по данным</h4><p id="stDataText">Неверные показатели</p></div>
+      <div class="support-topic" onclick="selectTopic('other')"><h4 id="stOtherTitle">💬 Другое</h4><p id="stOtherText">Общий вопрос или предложение</p></div>
+    </div>
+    <div id="supportFormWrap" style="display:none;">
+      <p style="font-size:13px;color:var(--muted);margin:0 0 12px;" id="supportSelectedTopic"></p>
+      <div class="support-form">
+        <textarea class="support-textarea" id="supportMessage" placeholder="Опишите проблему..."></textarea>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+          <span style="font-size:12px;color:var(--muted);" id="supportUserInfo"></span>
+          <div style="display:flex;gap:8px;">
+            <button class="btn-ghost" onclick="backToTopics()" id="btnBack">← Назад</button>
+            <button class="btn-accent" onclick="submitSupport()" id="btnSend">Отправить</button>
+          </div>
+        </div>
+      </div>
+      <div class="success-msg" id="supportSuccess" style="display:none;"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="logoutModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title" id="logoutTitle">Выйти из системы?</h3>
+      <button class="modal-close" onclick="closeModal('logoutModal')">✕</button>
+    </div>
+    <p style="color:var(--muted);font-size:14px;margin:0;" id="logoutDesc">Вы будете перенаправлены на страницу авторизации.</p>
+    <div class="modal-actions">
+      <button class="btn-danger" onclick="confirmLogout()" id="btnConfirmLogout">Выйти</button>
+      <button class="btn-ghost" onclick="closeModal('logoutModal')" id="btnCancelLogout">Отмена</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="profileModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title" id="profileTitle">Личный кабинет</h3>
+      <button class="modal-close" onclick="closeModal('profileModal')">✕</button>
+    </div>
+    <div style="display:grid;gap:12px;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div class="user-avatar" id="profileAvatar" style="width:46px;height:46px;font-size:16px;">U</div>
+        <div>
+          <div style="font-weight:700;font-size:18px;" id="profileName">—</div>
+          <div style="color:var(--muted);font-size:13px;" id="profileEmail">—</div>
+        </div>
+      </div>
+      <div class="profile-chip" id="profileRoleChip">—</div>
+      <div class="profile-card">
+        <div class="profile-lbl">Статус</div>
+        <div class="profile-val" id="profileStatus">—</div>
+      </div>
+      <div class="profile-card">
+        <div class="profile-lbl">Роль</div>
+        <div class="profile-val" id="profileRole">—</div>
+      </div>
+      <div class="profile-card">
+        <div class="profile-lbl">Назначенный поезд</div>
+        <div class="profile-val" id="profileTrain">—</div>
+      </div>
+      <div class="profile-card">
+        <div class="profile-lbl">Доступ</div>
+        <div class="profile-val" id="profileAccess">—</div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-danger" type="button" onclick="confirmLogout()" id="profileLogoutBtn">Выйти</button>
+        <button class="btn-ghost" type="button" onclick="closeModal('profileModal')" id="profileCloseBtn">Закрыть</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="shell" id="shell" style="display:none;">
+  <header class="nav">
+    <div class="brand">
+      <div class="mark"></div>
+      <div class="brand-text">
+        <div class="brand-title">KTZ Digital Twin</div>
+        <div class="brand-sub" id="brandSub">КТЖ • цифровой двойник</div>
+      </div>
+    </div>
+    <div class="tabs" role="tablist">
+      <button class="tab active" data-tab="home" id="tabHome">Главная</button>
+      <button class="tab" data-tab="tracker" id="tabTracker">Рейсы КТЖ</button>
+      <button class="tab" data-tab="cabin" id="tabCabin">Кабина</button>
+      <button class="tab" data-tab="replay" id="tabReplay">Replay</button>
+    </div>
+    <div class="right">
+      <button class="theme-btn" id="themeBtn" type="button">
+        <span class="theme-knob"></span>
+        <span id="themeLabel">Тема</span>
+      </button>
+      <div class="lang-group">
+        <button class="lang-btn active" data-lang="ru">RU</button>
+        <button class="lang-btn" data-lang="en">EN</button>
+      </div>
+      <button class="icon-btn" id="supportBtn" onclick="openModal('supportModal')">💬</button>
+      <div class="user-pill" id="userPill" role="button" tabindex="0" onclick="openProfile()">
+        <div class="user-avatar" id="userAvatar">U</div>
+        <span class="user-name" id="userNameDisplay">User</span>
+      </div>
+      <button class="icon-btn" id="logoutBtn" onclick="openModal('logoutModal')">⏻</button>
+    </div>
+  </header>
+  <main class="main">
+    <section class="view active" id="homeView">
+      <div class="card home-card">
+        <div class="home-hero">
+          <div class="home-kicker" id="homeKicker">Цифровой двойник локомотива (KTZ Digital Twin)</div>
+          <h1 class="home-title" id="homeTitle">Цифровой двойник локомотива</h1>
+          <div class="home-text" id="homeText"></div>
+        </div>
+        <div class="home-grid">
+          <div class="mini"><h3 id="m1Title">Интеллектуальная диагностика</h3><p id="m1Text">Health Index — состояние локомотива в одном числе.</p></div>
+          <div class="mini"><h3 id="m2Title">Реальные маршруты КТЖ</h3><p id="m2Text">Поезда движутся по настоящим железнодорожным путям Казахстана.</p></div>
+          <div class="mini"><h3 id="m3Title">Replay и аналитика</h3><p id="m3Text">История, аномалии и тренды в режиме реального времени.</p></div>
+        </div>
+      </div>
+    </section>
+    <section class="view" id="trackerView">
+      <div class="tracker-layout">
+        <div class="map-wrap card map-panel">
+          <div id="map"></div>
+          <div class="overlay">
+            <span id="overlayTrains">Поездов на карте</span>: <span class="v" id="overlayCount">5</span><br>
+            <span class="live" id="overlayUpdateLabel">Обновление</span>: <span class="v" id="lastUpdate">только что</span>
+          </div>
+        </div>
+        <aside class="side-wrap card panel">
+          <div class="panel-header">
+            <div class="panel-title" id="panelTitle">// активные маршруты</div>
+            <input class="search" id="searchInput" type="text" placeholder="Поиск по ID или маршруту..." />
+          </div>
+          <div class="train-list" id="trainList"></div>
+          <div class="detail" id="detailPanel">
+            <div class="detail-title" id="detailTitle">// выбранный локомотив</div>
+            <div class="detail-id" id="detailId">ВЛ80С-1247</div>
+            <div class="detail-route" id="detailRoute">Астана → Алматы · км 342 / 1224</div>
+            <div class="mini-grid">
+              <div class="mini-card"><div class="mini-lbl" id="lblSpeed">Скорость</div><div class="mini-val" style="color:var(--accent2)" id="dSpd">98</div></div>
+              <div class="mini-card"><div class="mini-lbl" id="lblHealth">Здоровье</div><div class="mini-val" style="color:var(--accent)" id="dHealth">87%</div></div>
+              <div class="mini-card"><div class="mini-lbl" id="lblFuel">Топливо</div><div class="mini-val" style="color:var(--warn)" id="dFuel">67%</div></div>
+              <div class="mini-card"><div class="mini-lbl" id="lblTemp">Температура</div><div class="mini-val" style="color:var(--danger)" id="dTemp">82°C</div></div>
+            </div>
+            <div class="actions">
+              <button class="btn primary" id="focusBtn" type="button">На карте</button>
+              <button class="btn detail-btn" id="detailBtn" type="button" onclick="openDetailModal()">Подробнее →</button>
+            </div>
+            <div class="small" id="trackerNote">Реальные маршруты КТЖ. Live-обновление каждые 2 сек.</div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="view" id="cabinView">
+      <div class="cabin-layout">
+        <div class="cabin-col">
+          <div class="cabin-panel">
+            <div class="cabin-panel-title"><span></span>Локомотив</div>
+            <div class="loco-selector" id="locoSelector"></div>
+            <div class="tele-row"><span class="tele-lbl">Модель</span><span class="tele-val" id="cbModel" style="color:var(--accent)">KZ8A</span></div>
+            <div class="tele-row"><span class="tele-lbl">Маршрут</span><span class="tele-val" id="cbRoute" style="font-size:11px">—</span></div>
+            <div class="tele-row"><span class="tele-lbl">Прогресс</span><span class="tele-val" id="cbProgress">0%</span></div>
+          </div>
+          <div class="cabin-panel">
+            <div class="cabin-panel-title"><span style="background:var(--warn)"></span>Топливо / Энергия</div>
+            <div class="tele-row">
+              <div><div class="tele-lbl">Уровень топлива</div><div class="tele-bar"><div class="tele-bar-fill" id="cbFuelBar" style="width:0%;background:var(--warn)"></div></div></div>
+              <span class="tele-val" id="cbFuel" style="color:var(--warn)">—</span>
+            </div>
+            <div class="tele-row"><span class="tele-lbl">Расход (л/ч)</span><span class="tele-val" id="cbFuelRate">—</span></div>
+            <div class="tele-row"><span class="tele-lbl">Напряжение (В)</span><span class="tele-val" id="cbVoltage" style="color:var(--accent2)">—</span></div>
+            <div class="tele-row"><span class="tele-lbl">Ток тяги (А)</span><span class="tele-val" id="cbCurrent">—</span></div>
+            <div class="tele-row"><span class="tele-lbl">Мощность (кВт)</span><span class="tele-val" id="cbPower" style="color:var(--accent)">—</span></div>
+          </div>
+          <div class="cabin-panel">
+            <div class="cabin-panel-title"><span style="background:var(--danger)"></span>Температуры</div>
+            <div class="tele-row"><span class="tele-lbl">Двигатель (°C)</span><span class="tele-val" id="cbTempEng">—</span></div>
+            <div class="tele-row"><span class="tele-lbl">Масло (°C)</span><span class="tele-val" id="cbTempOil">—</span></div>
+            <div class="tele-row"><span class="tele-lbl">Охлаждение (°C)</span><span class="tele-val" id="cbTempCool">—</span></div>
+            <div class="tele-row"><span class="tele-lbl">Тяговый эл-р (°C)</span><span class="tele-val" id="cbTempMotor">—</span></div>
+            <div class="chart-wrap"><canvas id="tempChart" class="sparkline"></canvas></div>
+          </div>
+        </div>
+
+        <div class="center-panel">
+          <div class="cabin-panel health-ring-wrap">
+            <svg class="health-ring-svg" viewBox="0 0 120 120">
+              <circle class="ring-bg" cx="60" cy="60" r="50"/>
+              <circle class="ring-fill" id="ringFill" cx="60" cy="60" r="50" transform="rotate(-90 60 60)"
+                stroke-dasharray="314" stroke-dashoffset="314" stroke="var(--accent)"/>
+              <text class="ring-text" x="60" y="54" id="ringVal">—</text>
+              <text class="ring-sub" x="60" y="68">Health Index</text>
+              <text class="ring-grade" x="60" y="80" id="ringGrade">—</text>
+            </svg>
+          </div>
+          <div class="cabin-panel speed-big">
+            <div class="speed-num" id="cbSpeed" style="color:var(--accent2)">—</div>
+            <div class="speed-unit">км/ч</div>
+            <div class="speed-sub" id="cbSpeedSub">—</div>
+          </div>
+          <div class="cabin-panel">
+            <div class="cabin-panel-title"><span style="background:var(--accent2)"></span>Системы локомотива</div>
+            <div class="systems-strip" id="cbSystems"></div>
+          </div>
+          <div class="cabin-panel">
+            <div class="cabin-panel-title"><span></span>Тренды (последние 30 сек)</div>
+            <div class="chart-wrap"><canvas id="speedChart" class="sparkline"></canvas></div>
+          </div>
+        </div>
+
+        <div class="cabin-col">
+          <div class="cabin-panel">
+            <div class="cabin-panel-title"><span style="background:var(--accent2)"></span>Давление (бар)</div>
+            <div class="gauge-grid">
+              <div class="gauge-item"><div class="gauge-val" id="cbPressBrake" style="color:var(--accent2)">—</div><div class="gauge-lbl">Тормоза</div></div>
+              <div class="gauge-item"><div class="gauge-val" id="cbPressMain" style="color:var(--accent)">—</div><div class="gauge-lbl">Гл. резервуар</div></div>
+              <div class="gauge-item"><div class="gauge-val" id="cbPressMag" style="color:var(--text)">—</div><div class="gauge-lbl">Тормозная магистраль</div></div>
+              <div class="gauge-item"><div class="gauge-val" id="cbPressOil" style="color:var(--warn)">—</div><div class="gauge-lbl">Масло</div></div>
+            </div>
+          </div>
+          <div class="cabin-panel">
+            <div class="cabin-panel-title"><span style="background:var(--danger)"></span>Алерты и коды ошибок</div>
+            <div id="cbAlerts"></div>
+          </div>
+          <div class="cabin-panel">
+            <div class="cabin-panel-title"><span style="background:var(--success)"></span>Параметры оси / движения</div>
+            <div class="tele-row"><span class="tele-lbl">Износ колёс (%)</span><span class="tele-val" id="cbWheelWear">—</span></div>
+            <div class="tele-row"><span class="tele-lbl">Вибрация (мм/с)</span><span class="tele-val" id="cbVibration">—</span></div>
+            <div class="tele-row"><span class="tele-lbl">Пробег (тыс. км)</span><span class="tele-val" id="cbMileage">—</span></div>
+            <div class="tele-row"><span class="tele-lbl">Нагрузка на ось (кН)</span><span class="tele-val" id="cbAxleLoad">—</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="replayView">
+      <div class="card home-card">
+        <div style="margin-bottom:16px;">
+          <div style="font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">// replay — анализ инцидентов</div>
+          <div class="loco-selector" id="replayLocoSelector"></div>
+        </div>
+        <div class="replay-bar">
+          <button class="replay-btn" id="replayPlayBtn" onclick="toggleReplay()">▶</button>
+          <button class="replay-btn" onclick="replayStepBack()">⏮</button>
+          <input type="range" class="replay-slider" id="replaySlider" min="0" max="599" value="0" oninput="replaySeek(this.value)">
+          <button class="replay-btn" onclick="replayStepFwd()">⏭</button>
+          <span class="replay-time" id="replayTime">-10:00</span>
+          <button class="replay-speed" onclick="cycleReplaySpeed()">x<span id="replaySpeedVal">1</span></button>
+        </div>
+        <div style="margin-top:16px;display:grid;grid-template-columns:repeat(4,1fr);gap:10px;" id="replayStats"></div>
+        <div style="margin-top:16px;">
+          <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">График скорости / температуры</div>
+          <canvas id="replayChart" style="width:100%;height:140px;display:block;"></canvas>
+        </div>
+        <div style="margin-top:16px;">
+          <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Журнал событий (replay)</div>
+          <div id="replayLog" style="background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:12px;padding:4px 12px;max-height:200px;overflow:auto;"></div>
+        </div>
+      </div>
+    </section>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const i18n = {
+  ru: {
+    tabHome:'Главная', tabTracker:'Рейсы КТЖ', navTracker:'Рейсы КТЖ', tabCabin:'Кабина', tabReplay:'Replay',
+    themeLabel:'Тема', brandSub:'КТЖ • цифровой двойник',
+    homeKicker:'Цифровой двойник локомотива (KTZ Digital Twin)',
+    homeTitle:'Цифровой двойник локомотива',
+    homeText:`<p>Инновационная система мониторинга «Цифровой двойник локомотива» — виртуальная копия физических составов Казахстан Темір Жолы в режиме реального времени.</p><p><strong>Интеллектуальная диагностика:</strong> Анализ десятков параметров — от температуры двигателя до давления тормозной магистрали — в едином Health Index.</p><p><strong>Реальные маршруты КТЖ:</strong> Поезда движутся по настоящим железнодорожным путям — Астана–Алматы, Алматы–Шымкент, Актобе–Астана, Павлодар–Семей, Шымкент–Кызылорда.</p><p><strong>Предиктивная аналитика и Replay:</strong> Анализ инцидентов, предотвращение поломок и сокращение простоев.</p>`,
+    m1Title:'Интеллектуальная диагностика', m1Text:'Health Index — состояние локомотива в одном числе.',
+    m2Title:'Реальные маршруты КТЖ', m2Text:'Поезда движутся по настоящим железнодорожным путям Казахстана.',
+    m3Title:'Replay и аналитика', m3Text:'История, аномалии и тренды в режиме реального времени.',
+    panelTitle:'// активные маршруты', searchPH:'Поиск по ID или маршруту...',
+    detailTitle:'// выбранный локомотив',
+    lblSpeed:'Скорость', lblHealth:'Здоровье', lblFuel:'Топливо', lblTemp:'Температура',
+    focusBtn:'На карте', detailBtn:'Подробнее →',
+    trackerNote:'Реальные маршруты КТЖ. Live-обновление каждые 2 сек.',
+    overlayTrains:'Поездов на карте', overlayUpdate:'Обновление', lastUpdate:'только что',
+    healthGrade:{A:'Норма',B:'Внимание',D:'Критично'},
+    searchEmpty:'Ничего не найдено',
+    authLoginTitle:'Вход в систему', btnLogin:'Войти', linkToReg:'Регистрация',
+    authRegTitle:'Регистрация', btnRegister:'Создать аккаунт', linkToLogin:'Войти',
+    loginErrorMsg:'Заполните все поля', regErrorName:'Введите имя',
+    regErrorEmail:'Email должен содержать @', regErrorPass:'Пароль слишком короткий',
+    supportTitle:'Техническая поддержка', supportSubtitle:'Выберите тему обращения:',
+    stBugTitle:'🐛 Сообщить об ошибке', stBugText:'Что-то работает не так',
+    stAccessTitle:'🔐 Проблемы с доступом', stAccessText:'Не могу войти или зарегистрироваться',
+    stDataTitle:'📊 Вопрос по данным', stDataText:'Неверные показатели',
+    stOtherTitle:'💬 Другое', stOtherText:'Общий вопрос или предложение',
+    supportMsgPH:'Опишите проблему подробно...', btnBack:'← Назад', btnSend:'Отправить',
+    supportSuccess:'✓ Обращение принято. Мы свяжемся с вами.',
+    logoutTitle:'Выйти из системы?', logoutDesc:'Вы будете перенаправлены на страницу авторизации.',
+    btnConfirmLogout:'Выйти', btnCancelLogout:'Отмена',
+    supportBtnTitle:'Поддержка', logoutBtnTitle:'Выйти',
+    topics:{bug:'Ошибка',access:'Проблемы с доступом',data:'Вопрос по данным',other:'Другое'},
+    dmSecMain:'Основные параметры', dmSecSys:'Системы локомотива', dmSecLog:'Журнал событий',
+    dmL:{speed:'Скорость',health:'Здоровье',fuel:'Топливо',temp:'Температура',kmDone:'Пройдено',kmLeft:'Осталось',progress:'Прогресс',brake:'Тормоза',engine:'Двигатель',electro:'Электрика',compressor:'Компрессор',axle:'Ось/Колёса',cabin:'Кабина'},
+    kmh:'км/ч', km:'км'
+  },
+  en: {
+    tabHome:'Home', tabTracker:'KTZ Routes', navTracker:'KTZ Routes', tabCabin:'Cabin', tabReplay:'Replay',
+    themeLabel:'Theme', brandSub:'KTZ • digital twin',
+    homeKicker:'Locomotive Digital Twin (KTZ Digital Twin)',
+    homeTitle:'Locomotive Digital Twin',
+    homeText:`<p>The Locomotive Digital Twin — a real-time virtual copy of Kazakhstan Temir Zholy trains.</p><p><strong>Intelligent diagnostics:</strong> Dozens of parameters combined into a single Health Index.</p><p><strong>Real KTZ routes:</strong> Trains move along actual railway tracks — Astana–Almaty, Almaty–Shymkent, Aktobe–Astana, Pavlodar–Semey, Shymkent–Kyzylorda.</p><p><strong>Predictive analytics and Replay:</strong> Analyze incidents and prevent failures before they happen.</p>`,
+    m1Title:'Intelligent diagnostics', m1Text:'Health Index — locomotive condition in one number.',
+    m2Title:'Real KTZ Routes', m2Text:'Trains move along actual Kazakhstan railway tracks.',
+    m3Title:'Replay and analytics', m3Text:'History, anomalies and trends in real time.',
+    panelTitle:'// active routes', searchPH:'Search by ID or route...',
+    detailTitle:'// selected locomotive',
+    lblSpeed:'Speed', lblHealth:'Health', lblFuel:'Fuel', lblTemp:'Temperature',
+    focusBtn:'On map', detailBtn:'Details →',
+    trackerNote:'Real KTZ routes. Live updates every 2 sec.',
+    overlayTrains:'Trains on map', overlayUpdate:'Updated', lastUpdate:'just now',
+    healthGrade:{A:'Normal',B:'Attention',D:'Critical'},
+    searchEmpty:'Nothing found',
+    authLoginTitle:'Sign in', btnLogin:'Sign in', linkToReg:'Register',
+    authRegTitle:'Create account', btnRegister:'Create account', linkToLogin:'Sign in',
+    loginErrorMsg:'Please fill in all fields', regErrorName:'Enter your name',
+    regErrorEmail:'Email must contain @', regErrorPass:'Password is too short',
+    supportTitle:'Technical Support', supportSubtitle:'Choose a topic:',
+    stBugTitle:'🐛 Report a bug', stBugText:'Something is not working as expected',
+    stAccessTitle:'🔐 Access issues', stAccessText:'Cannot log in or register',
+    stDataTitle:'📊 Data question', stDataText:'Incorrect readings or data not showing',
+    stOtherTitle:'💬 Other', stOtherText:'General question or suggestion',
+    supportMsgPH:'Describe the issue in detail...', btnBack:'← Back', btnSend:'Send',
+    supportSuccess:'✓ Request received. We will contact you.',
+    logoutTitle:'Sign out?', logoutDesc:'You will be redirected to the login page.',
+    btnConfirmLogout:'Sign out', btnCancelLogout:'Cancel',
+    supportBtnTitle:'Support', logoutBtnTitle:'Sign out',
+    topics:{bug:'System bug',access:'Access issues',data:'Data question',other:'Other'},
+    dmSecMain:'Main parameters', dmSecSys:'Locomotive systems', dmSecLog:'Event log',
+    dmL:{speed:'Speed',health:'Health',fuel:'Fuel',temp:'Temperature',kmDone:'Done',kmLeft:'Left',progress:'Progress',brake:'Brakes',engine:'Engine',electro:'Electrical',compressor:'Compressor',axle:'Axle/Wheels',cabin:'Cabin'},
+    kmh:'km/h', km:'km'
+  }
+};
+
+const railRoutes = {
+  'astana-almaty':[[51.18,71.45],[50.72,71.90],[50.10,72.85],[49.40,73.10],[48.90,72.50],[48.40,72.10],[47.80,72.40],[47.10,73.20],[46.20,74.00],[45.40,74.70],[44.60,75.60],[43.90,76.20],[43.22,76.85]],
+  'almaty-shymkent':[[43.22,76.85],[42.90,76.20],[42.60,75.40],[42.40,74.50],[42.30,73.50],[42.20,72.50],[42.10,71.50],[42.10,70.80],[42.30,69.60]],
+  'aktobe-astana':[[50.28,57.21],[50.60,58.50],[51.00,60.20],[51.20,62.00],[51.40,63.80],[51.50,65.60],[51.40,67.40],[51.30,69.20],[51.18,71.45]],
+  'pavlodar-semey':[[52.28,76.96],[51.90,77.40],[51.50,78.10],[51.10,79.00],[50.70,79.80],[50.41,80.23]],
+  'shymkent-kyzylorda':[[42.30,69.60],[42.60,68.80],[43.00,68.00],[43.40,67.20],[43.90,66.50],[44.40,66.00],[44.85,65.51]],
+  'almaty-atyrau':[[43.22,76.85],[44.00,74.00],[45.00,71.00],[46.00,68.00],[46.50,65.00],[47.00,61.00],[47.12,51.86]],
+  'almaty-mangyshlak':[[43.22,76.85],[43.50,74.00],[43.80,71.00],[44.00,68.00],[44.20,64.00],[44.00,59.00],[43.65,51.17]],
+  'astana-kostanay':[[51.18,71.45],[51.50,70.00],[52.00,68.00],[52.50,66.00],[53.00,64.00],[53.21,63.61]],
+  'astana-pavlodar':[[51.18,71.45],[51.50,72.50],[51.80,73.50],[52.00,74.80],[52.20,76.00],[52.28,76.96]]
+};
+
+const trains = [
+  { id:'KZ8A-001', model:'KZ8A', route:'Астана → Алматы', routeKey:'astana-almaty', pct:0.28, health:87, speed:185, fuel:67, temp:82, color:'#22c55e', kmTotal:1224, brakes:94, engine:91, electro:88, compressor:96, axle:89, cabin:100, voltage:3050, current:820, power:2501, fuelRate:0, tempOil:68, tempCool:74, tempMotor:79, pressBrake:4.8, pressMain:8.2, pressMag:5.0, pressOil:4.1, wheelWear:12, vibration:2.1, mileage:184.3, axleLoad:215, faults:[], logs:[{time:'14:32',msg:'Плановое обслуживание выполнено',type:'ok'},{time:'12:10',msg:'Тяговый двигатель в норме',type:'ok'},{time:'09:45',msg:'Заправка — 100%',type:'ok'}] },
+  { id:'ТЭ33А-0142', model:'ТЭ33А', route:'Алматы → Шымкент', routeKey:'almaty-shymkent', pct:0.14, health:92, speed:95, fuel:82, temp:76, color:'#22c55e', kmTotal:691, brakes:98, engine:95, electro:92, compressor:90, axle:94, cabin:97, voltage:110, current:1650, power:1815, fuelRate:312, tempOil:72, tempCool:68, tempMotor:0, pressBrake:5.1, pressMain:9.0, pressMag:5.2, pressOil:4.5, wheelWear:8, vibration:1.7, mileage:97.6, axleLoad:240, faults:[], logs:[{time:'13:55',msg:'Отправление из Алматы',type:'ok'},{time:'13:00',msg:'Предрейсовая проверка пройдена',type:'ok'}] },
+  { id:'2ТЭ116-893', model:'2ТЭ116', route:'Актобе → Астана', routeKey:'aktobe-astana', pct:0.54, health:71, speed:102, fuel:41, temp:88, color:'#f59e0b', kmTotal:1652, brakes:85, engine:78, electro:81, compressor:74, axle:88, cabin:92, voltage:108, current:1420, power:1534, fuelRate:398, tempOil:84, tempCool:81, tempMotor:0, pressBrake:4.4, pressMain:7.8, pressMag:4.9, pressOil:3.8, wheelWear:22, vibration:3.4, mileage:521.8, axleLoad:238, faults:[{code:'F0241',level:'warn',msg:'Давление компрессора -26%'},{code:'F0118',level:'warn',msg:'Низкий уровень топлива'}], logs:[{time:'15:01',msg:'Низкий уровень топлива — требуется дозаправка',type:'warn'},{time:'11:20',msg:'Давление компрессора снизилось до 74%',type:'warn'},{time:'08:00',msg:'Выезд из депо Актобе',type:'ok'}] },
+  { id:'ТЭМ18-411', model:'ТЭМ18', route:'Павлодар → Семей', routeKey:'pavlodar-semey', pct:0.39, health:43, speed:54, fuel:55, temp:103, color:'#ef4444', kmTotal:520, brakes:62, engine:48, electro:71, compressor:55, axle:44, cabin:80, voltage:105, current:980, power:1029, fuelRate:445, tempOil:97, tempCool:101, tempMotor:0, pressBrake:3.9, pressMain:6.4, pressMag:4.2, pressOil:3.1, wheelWear:56, vibration:7.8, mileage:834.2, axleLoad:231, faults:[{code:'E0042',level:'err',msg:'Перегрев двигателя 103°C'},{code:'E0198',level:'err',msg:'Критический износ колёс 44%'},{code:'F0301',level:'warn',msg:'Давление масла снижено'}], logs:[{time:'14:48',msg:'КРИТИЧНО: перегрев двигателя 103°C',type:'err'},{time:'14:30',msg:'Износ колёсных пар 44% — замена',type:'err'},{time:'13:10',msg:'Скорость снижена до 54 км/ч',type:'warn'},{time:'10:00',msg:'Выезд из депо Павлодар',type:'ok'}] },
+  { id:'ВЛ60-778', model:'ВЛ60', route:'Шымкент → Кызылорда', routeKey:'shymkent-kyzylorda', pct:0.11, health:68, speed:79, fuel:73, temp:84, color:'#f59e0b', kmTotal:480, brakes:80, engine:73, electro:77, compressor:82, axle:71, cabin:88, voltage:3000, current:740, power:2220, fuelRate:0, tempOil:77, tempCool:79, tempMotor:83, pressBrake:4.7, pressMain:8.0, pressMag:5.0, pressOil:4.0, wheelWear:30, vibration:4.2, mileage:412.1, axleLoad:220, faults:[{code:'F0155',level:'warn',msg:'Износ тормозных колодок 80%'}], logs:[{time:'15:10',msg:'Отправление из Шымкента',type:'ok'},{time:'14:50',msg:'Износ тормозных колодок 80% — плановая замена',type:'warn'}] },
+  { id:'KZ8A-007', model:'KZ8A', route:'Алматы → Атырау', routeKey:'almaty-atyrau', pct:0.22, health:95, speed:160, fuel:79, temp:77, color:'#22c55e', kmTotal:2730, brakes:97, engine:96, electro:94, compressor:98, axle:95, cabin:100, voltage:3100, current:780, power:2418, fuelRate:0, tempOil:65, tempCool:70, tempMotor:75, pressBrake:5.0, pressMain:8.5, pressMag:5.1, pressOil:4.3, wheelWear:6, vibration:1.4, mileage:42.7, axleLoad:210, faults:[], logs:[{time:'08:00',msg:'Отправление из Алматы, все системы норма',type:'ok'}] },
+  { id:'ТЭ33А-0081', model:'ТЭ33А', route:'Алматы → Мангышлак', routeKey:'almaty-mangyshlak', pct:0.17, health:80, speed:88, fuel:61, temp:86, color:'#22c55e', kmTotal:2900, brakes:88, engine:82, electro:84, compressor:87, axle:80, cabin:91, voltage:112, current:1580, power:1770, fuelRate:335, tempOil:80, tempCool:83, tempMotor:0, pressBrake:4.6, pressMain:8.1, pressMag:4.8, pressOil:4.0, wheelWear:18, vibration:2.9, mileage:203.4, axleLoad:238, faults:[{code:'F0202',level:'warn',msg:'Температура масла +80°C'}], logs:[{time:'07:30',msg:'Выезд из Алматы',type:'ok'},{time:'09:10',msg:'Температура масла повышена до 80°C',type:'warn'}] },
+  { id:'2ТЭ116-551', model:'2ТЭ116', route:'Астана → Костанай', routeKey:'astana-kostanay', pct:0.45, health:76, speed:94, fuel:58, temp:83, color:'#f59e0b', kmTotal:840, brakes:82, engine:79, electro:83, compressor:78, axle:82, cabin:90, voltage:109, current:1380, power:1504, fuelRate:375, tempOil:79, tempCool:77, tempMotor:0, pressBrake:4.5, pressMain:7.9, pressMag:4.9, pressOil:3.9, wheelWear:25, vibration:3.1, mileage:388.6, axleLoad:235, faults:[{code:'F0241',level:'warn',msg:'Компрессор — давление 78%'}], logs:[{time:'11:00',msg:'Выезд из Астаны',type:'ok'},{time:'13:30',msg:'Плановая остановка — заправка',type:'ok'}] },
+  { id:'KZ8A-012', model:'KZ8A', route:'Астана → Павлодар', routeKey:'astana-pavlodar', pct:0.60, health:89, speed:140, fuel:72, temp:79, color:'#22c55e', kmTotal:460, brakes:92, engine:90, electro:91, compressor:94, axle:88, cabin:99, voltage:3080, current:800, power:2464, fuelRate:0, tempOil:67, tempCool:72, tempMotor:77, pressBrake:4.9, pressMain:8.3, pressMag:5.1, pressOil:4.2, wheelWear:10, vibration:1.8, mileage:128.9, axleLoad:212, faults:[], logs:[{time:'12:00',msg:'Выезд из Астаны',type:'ok'},{time:'13:15',msg:'Перегон Астана—Павлодар, все системы норма',type:'ok'}] }
+];
+trains.forEach(tr => { tr.kmDone = Math.round(tr.pct * tr.kmTotal); });
+
+const trainDirs = [1,1,1,1,1,1,1,1,1];
+const markers = [];
+const routeLines = [];
+let map = null, tileLayer = null, selectedIdx = 0;
+let currentUser = null, supportTopic = null;
+const state = { lang:'ru', theme:'dark', activeTab:'home' };
+let cabinIdx = 0;
+const speedHistory = Array.from({length:30},()=>0);
+const tempHistory = Array.from({length:30},()=>0);
+let replayIdx = 0, replayPlaying = false, replaySpeed = 1, replayTimer = null, replayLocoIdx = 0;
+const replayData = [];
+
+const DARK_TILE = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+const LIGHT_TILE = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+const el = id => document.getElementById(id);
+const t = key => i18n[state.lang][key];
+
+function lerpAlongRoute(wp, pct) {
+  if (!wp || wp.length < 2) return wp[0];
+  const segs = wp.length - 1;
+  const raw = pct * segs;
+  const si = Math.min(Math.floor(raw), segs - 1);
+  const sp = raw - si;
+  const a = wp[si], b = wp[si+1];
+  return [a[0]+(b[0]-a[0])*sp, a[1]+(b[1]-a[1])*sp];
+}
+function clamp(n,a,b){return Math.max(a,Math.min(b,n));}
+function healthColor(h){return h>=80?'#22c55e':h>=60?'#f59e0b':'#ef4444';}
+function healthText(h){const g=t('healthGrade');return h>=80?g.A:h>=60?g.B:g.D;}
+
+function iconSvg(color) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" fill="${color}22"/><circle cx="18" cy="18" r="9" fill="${color}"/><circle cx="18" cy="18" r="4" fill="white" fill-opacity="0.5"/></svg>`;
+}
+function createIcon(color){return L.divIcon({html:iconSvg(color),iconSize:[36,36],iconAnchor:[18,18],className:''});}
+
+function popupHtml(tn) {
+  const L = i18n[state.lang].dmL;
+  const spd = t('kmh');
+  return `<div class="popup-id">${tn.id}</div><div class="popup-route">${tn.route}</div>
+    <div class="popup-row"><span class="popup-key">${L.health}</span><span class="popup-val" style="color:${tn.color}">${tn.health}% / ${healthText(tn.health)}</span></div>
+    <div class="popup-row"><span class="popup-key">${L.speed}</span><span class="popup-val" style="color:var(--accent2)">${tn.speed} ${spd}</span></div>
+    <div class="popup-row"><span class="popup-key">${L.fuel}</span><span class="popup-val" style="color:var(--warn)">${tn.fuel}%</span></div>
+    <div class="popup-row"><span class="popup-key">${L.temp}</span><span class="popup-val" style="color:var(--danger)">${tn.temp}°C</span></div>`;
+}
+
+function initMap() {
+  if (map) return;
+  map = L.map('map',{center:[48.0,67.0],zoom:5,zoomControl:true,attributionControl:false});
+  tileLayer = L.tileLayer(state.theme==='dark'?DARK_TILE:LIGHT_TILE,{maxZoom:18}).addTo(map);
+
+  trains.forEach((tr,idx) => {
+    const wp = railRoutes[tr.routeKey];
+    const line = L.polyline(wp,{color:tr.color,weight:3.5,opacity:0.6}).addTo(map);
+    L.polyline(wp,{color:'#ffffff',weight:1,opacity:0.1,dashArray:'3,10'}).addTo(map);
+    routeLines.push(line);
+    const pos = lerpAlongRoute(wp, tr.pct);
+    const m = L.marker(pos,{icon:createIcon(tr.color)}).addTo(map)
+      .bindPopup(popupHtml(tr),{maxWidth:260})
+      .on('click',()=>selectTrain(idx));
+    markers.push(m);
+  });
+
+  [{name:'Астана',pos:[51.18,71.45]},{name:'Алматы',pos:[43.22,76.85]},{name:'Шымкент',pos:[42.30,69.60]},{name:'Актобе',pos:[50.28,57.21]},{name:'Павлодар',pos:[52.28,76.96]},{name:'Семей',pos:[50.41,80.23]},{name:'Кызылорда',pos:[44.85,65.51]},{name:'Атырау',pos:[47.12,51.86]},{name:'Актау',pos:[43.65,51.17]},{name:'Петропавловск',pos:[54.87,69.16]},{name:'Костанай',pos:[53.21,63.61]},{name:'Тараз',pos:[42.90,71.37]}]
+  .forEach(c=>{
+    L.circleMarker(c.pos,{radius:4,color:'#00c49a',fillColor:'#00c49a',fillOpacity:0.7,weight:2})
+      .addTo(map).bindTooltip(c.name,{permanent:true,direction:'right',offset:[6,0],className:'city-label'});
+  });
+}
+
+function buildTrainList() {
+  const list = el('trainList');
+  if (!list) return;
+  const q = el('searchInput').value.trim().toLowerCase();
+  list.innerHTML = '';
+  let count = 0;
+  trains.forEach((tr,idx) => {
+    if (q && !tr.id.toLowerCase().includes(q) && !tr.route.toLowerCase().includes(q)) return;
+    count++;
+    const pct = Math.round(tr.pct*100);
+    const card = document.createElement('div');
+    card.className = 'train-card'+(idx===selectedIdx?' active':'');
+    card.innerHTML = `<div class="row1"><div class="id">${tr.id}</div><div class="health" style="color:${tr.color}">${tr.health}% / ${healthText(tr.health)}</div></div><div class="route">${tr.route} · км ${tr.kmDone}/${tr.kmTotal}</div><div class="bar"><div class="fill" style="width:${pct}%;background:${tr.color}"></div></div>`;
+    card.addEventListener('click',()=>selectTrain(idx));
+    list.appendChild(card);
+  });
+  el('overlayCount').textContent = String(count);
+  if (!count) list.innerHTML = `<div class="small" style="padding:8px 4px;">${t('searchEmpty')}</div>`;
+}
+
+function updateSelectedDetail() {
+  const tr = trains[selectedIdx];
+  if (!tr) return;
+  const lang = state.lang;
+  el('detailId').textContent = tr.id;
+  el('detailRoute').textContent = `${tr.route} · км ${tr.kmDone} / ${tr.kmTotal}`;
+  el('dSpd').textContent = `${tr.speed} ${i18n[lang].kmh}`;
+  el('dHealth').textContent = `${tr.health}%`;
+  el('dFuel').textContent = `${tr.fuel}%`;
+  el('dTemp').textContent = `${tr.temp}°C`;
+  if (markers[selectedIdx]) markers[selectedIdx].openPopup();
+}
+
+function openDetailModal() {
+  const tr = trains[selectedIdx];
+  if (!tr) return;
+  const lang = state.lang;
+  const L = i18n[lang].dmL;
+  const km = i18n[lang].km;
+  const kmh = i18n[lang].kmh;
+  const progress = Math.round(tr.pct*100);
+
+  el('dmId').textContent = tr.id + (tr.model?' · '+tr.model:'');
+  el('dmRoute').textContent = `${tr.route} · км ${tr.kmDone} / ${tr.kmTotal}`;
+
+  const tempCol = tr.temp>95?'var(--danger)':tr.temp>85?'var(--warn)':'var(--success)';
+  const fuelCol = tr.fuel<30?'var(--danger)':tr.fuel<50?'var(--warn)':'var(--accent)';
+  const hcol = tr.color;
+
+  const mainStats = [
+    {lbl:L.speed, val:`${tr.speed} <span style="font-size:11px;color:var(--muted)">${kmh}</span>`, raw:null, col:'var(--accent2)'},
+    {lbl:L.health, val:`${tr.health}%`, raw:tr.health, col:hcol},
+    {lbl:L.temp, val:`${tr.temp}°C`, raw:null, col:tempCol},
+    {lbl:L.fuel, val:`${tr.fuel}%`, raw:tr.fuel, col:fuelCol},
+    {lbl:L.kmDone, val:`${tr.kmDone} <span style="font-size:11px;color:var(--muted)">${km}</span>`, raw:null, col:'var(--text)'},
+    {lbl:L.progress, val:`${progress}%`, raw:progress, col:'var(--accent2)'},
+  ].map(s=>`<div class="dm-stat"><div class="dm-stat-lbl">${s.lbl}</div><div class="dm-stat-val" style="color:${s.col}">${s.val}</div>${s.raw!==null?`<div class="sbar"><div class="sbar-fill" style="width:${s.raw}%;background:${s.col}"></div></div>`:''}</div>`).join('');
+
+  const sys = [
+    {lbl:L.brake,v:tr.brakes},{lbl:L.engine,v:tr.engine},{lbl:L.electro,v:tr.electro},
+    {lbl:L.compressor,v:tr.compressor},{lbl:L.axle,v:tr.axle},{lbl:L.cabin,v:tr.cabin}
+  ];
+  const sysGrid = sys.map(s=>{
+    const c=s.v>=80?'var(--success)':s.v>=60?'var(--warn)':'var(--danger)';
+    return`<div class="dm-stat"><div class="dm-stat-lbl">${s.lbl}</div><div class="dm-stat-val" style="color:${c}">${s.v}%</div><div class="sbar"><div class="sbar-fill" style="width:${s.v}%;background:${c}"></div></div></div>`;
+  }).join('');
+
+  const tele = [
+    {lbl:'Напряжение', val:tr.voltage+' В', col:'var(--accent2)'},
+    {lbl:'Ток тяги', val:tr.current+' А', col:'var(--text)'},
+    {lbl:'Мощность', val:tr.power+' кВт', col:'var(--accent)'},
+    {lbl:'Расход', val:tr.fuelRate?tr.fuelRate+' л/ч':'⚡ электро', col:'var(--warn)'},
+    {lbl:'Тормоза (бар)', val:tr.pressBrake.toFixed(1), col:'var(--accent2)'},
+    {lbl:'Гл. резервуар', val:tr.pressMain.toFixed(1)+' бар', col:'var(--text)'},
+    {lbl:'Темп. масла', val:tr.tempOil+'°C', col:tr.tempOil>90?'var(--danger)':tr.tempOil>80?'var(--warn)':'var(--success)'},
+    {lbl:'Вибрация', val:tr.vibration.toFixed(1)+' мм/с', col:tr.vibration>6?'var(--danger)':tr.vibration>4?'var(--warn)':'var(--success)'},
+    {lbl:'Давл. магистраль', val:tr.pressMag.toFixed(1)+' бар', col:'var(--text)'},
+    {lbl:'Давл. масло', val:tr.pressOil.toFixed(1)+' бар', col:'var(--text)'},
+    {lbl:'Износ колёс', val:tr.wheelWear+'%', col:tr.wheelWear>40?'var(--danger)':tr.wheelWear>20?'var(--warn)':'var(--success)'},
+    {lbl:'Нагрузка оси', val:tr.axleLoad+' кН', col:'var(--text)'},
+  ].map(t=>`<div class="dm-tele-item"><div class="dm-tele-val" style="color:${t.col}">${t.val}</div><div class="dm-tele-lbl">${t.lbl}</div></div>`).join('');
+
+  const faults = tr.faults&&tr.faults.length
+    ? `<div class="dm-section"><div class="dm-section-title" style="color:var(--danger)">⚠ Коды неисправностей</div><div class="dm-log">${tr.faults.map(f=>`<div class="dm-fault-item"><span class="fault-code${f.level==='warn'?' fault-warn-code':''}">${f.code}</span><span>${f.msg}</span></div>`).join('')}</div></div>`
+    : `<div class="dm-section"><div class="dm-section-title" style="color:var(--success)">✓ Неисправностей не обнаружено</div></div>`;
+
+  const logRows = tr.logs.map(lg=>`<div class="log-row"><span class="log-time">${lg.time}</span><span class="log-${lg.type}">${lg.msg}</span></div>`).join('');
+
+  el('dmBody').innerHTML = `
+    <div class="dm-section">
+      <div class="dm-section-title">${t('dmSecMain')}</div>
+      <div class="dm-grid">${mainStats}</div>
+    </div>
+    <div class="dm-section">
+      <div class="dm-section-title">Телеметрия</div>
+      <div class="dm-telemetry">${tele}</div>
+    </div>
+    <div class="dm-section">
+      <div class="dm-section-title">${t('dmSecSys')}</div>
+      <div class="dm-grid">${sysGrid}</div>
+    </div>
+    ${faults}
+    <div class="dm-section">
+      <div class="dm-section-title">${t('dmSecLog')}</div>
+      <div class="dm-log">${logRows}</div>
+    </div>
+  `;
+
+  openModal('detailModal');
+}
+
+function selectTrain(idx) {
+  selectedIdx = idx;
+  updateSelectedDetail();
+  buildTrainList();
+  if (map) {
+    const tr = trains[idx];
+    const pos = lerpAlongRoute(railRoutes[tr.routeKey], tr.pct);
+    map.flyTo(pos, 7, {duration:1.1});
+  }
+  el('lastUpdate').textContent = t('lastUpdate');
+}
+
+function updateTrains() {
+  trains.forEach((tr,idx) => {
+    tr.pct += trainDirs[idx]*0.003;
+    if (tr.pct>0.97||tr.pct<0.03) trainDirs[idx]*=-1;
+    tr.speed = clamp(Math.round(tr.speed+(Math.random()-0.5)*4),40,tr.model==='KZ8A'?200:130);
+    tr.temp = clamp(Math.round(tr.temp+(Math.random()-0.5)*2),65,115);
+    tr.fuel = clamp(+(tr.fuel-Math.random()*0.12).toFixed(1),0,100);
+    tr.health = clamp(Math.round(tr.health+(Math.random()-0.5)*2),0,100);
+    tr.brakes = clamp(Math.round(tr.brakes+(Math.random()-0.5)),0,100);
+    tr.engine = clamp(Math.round(tr.engine+(Math.random()-0.5)),0,100);
+    tr.voltage = clamp(Math.round(tr.voltage+(Math.random()-0.5)*15),90,3200);
+    tr.current = clamp(Math.round(tr.current+(Math.random()-0.5)*20),500,2000);
+    tr.power = Math.round(tr.voltage*tr.current/1000);
+    tr.tempOil = clamp(Math.round(tr.tempOil+(Math.random()-0.5)*1.5),50,110);
+    tr.tempCool = clamp(Math.round(tr.tempCool+(Math.random()-0.5)*1.5),50,110);
+    tr.pressBrake = clamp(+(tr.pressBrake+(Math.random()-0.5)*0.1).toFixed(1),2,6);
+    tr.pressMain = clamp(+(tr.pressMain+(Math.random()-0.5)*0.1).toFixed(1),5,10);
+    tr.vibration = clamp(+(tr.vibration+(Math.random()-0.5)*0.3).toFixed(1),0.5,12);
+    tr.color = healthColor(tr.health);
+    tr.kmDone = Math.round(tr.pct*tr.kmTotal);
+    const pos = lerpAlongRoute(railRoutes[tr.routeKey], tr.pct);
+    if (markers[idx]) { markers[idx].setLatLng(pos); markers[idx].setIcon(createIcon(tr.color)); markers[idx].setPopupContent(popupHtml(tr)); }
+    if (routeLines[idx]) routeLines[idx].setStyle({color:tr.color});
+  });
+  updateSelectedDetail();
+  buildTrainList();
+  if (state.activeTab==='cabin') updateCabin();
+}
+
+function openModal(id) {
+  el(id).classList.add('open');
+  if (id==='supportModal') {
+    el('supportTopics').style.display='';
+    el('supportFormWrap').style.display='none';
+    el('supportSuccess').style.display='none';
+    el('supportMessage').value='';
+  }
+}
+function closeModal(id){el(id).classList.remove('open');}
+document.querySelectorAll('.modal-overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');}));
+
+function selectTopic(topic) {
+  supportTopic=topic;
+  el('supportTopics').style.display='none';
+  el('supportFormWrap').style.display='';
+  el('supportSelectedTopic').textContent='→ '+t('topics')[topic];
+  el('supportMessage').placeholder=t('supportMsgPH');
+  if (currentUser) el('supportUserInfo').textContent=currentUser.name+(currentUser.email?' · '+currentUser.email:'');
+}
+function backToTopics(){el('supportTopics').style.display='';el('supportFormWrap').style.display='none';}
+function submitSupport() {
+  const msg=el('supportMessage').value.trim();
+  if (!msg){el('supportMessage').style.borderColor='var(--danger)';return;}
+  el('supportMessage').style.borderColor='';
+  el('supportSuccess').style.display='block';
+  el('supportSuccess').textContent=t('supportSuccess');
+  el('supportMessage').value='';
+  setTimeout(()=>closeModal('supportModal'),2200);
+}
+
+function switchForm(type) {
+  resetErrors();
+  el('loginSection').style.display=type==='login'?'block':'none';
+  el('regSection').style.display=type==='reg'?'block':'none';
+}
+function resetErrors() {
+  document.querySelectorAll('.field').forEach(f=>f.classList.remove('error'));
+  document.querySelectorAll('.error-text').forEach(e=>e.style.opacity='0');
+}
+function showError(errEl,fields,msg){errEl.textContent=msg;errEl.style.opacity='1';fields.forEach(f=>f.classList.add('error'));}
+function handleLogin() {
+  const user=el('loginUser'),pass=el('loginPass'),err=el('loginError');
+  resetErrors();
+  if (!user.value.trim()||!pass.value.trim()){showError(err,[user,pass],t('loginErrorMsg'));return;}
+  loginAs(user.value.trim(),null);
+}
+function handleRegister() {
+  const name=el('regName'),email=el('regEmail'),pass=el('regPass'),err=el('regError');
+  resetErrors();
+  if (!name.value.trim()){showError(err,[name],t('regErrorName'));return;}
+  if (!email.value.includes('@')){showError(err,[email],t('regErrorEmail'));return;}
+  if (pass.value.length<6){showError(err,[pass],t('regErrorPass'));return;}
+  loginAs(name.value.trim(),email.value.trim());
+}
+function loginAs(name,email) {
+  const initials=name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  currentUser={name,email,initials};
+  localStorage.setItem('ktz-user',JSON.stringify(currentUser));
+  el('authScreen').style.display='none';
+  el('shell').style.display='';
+  el('userAvatar').textContent=initials;
+  el('userNameDisplay').textContent=name.split(' ')[0];
+  if (!map){initMap();setTimeout(()=>{if(map)map.invalidateSize();},300);}
+  updateSelectedDetail();
+  buildTrainList();
+}
+function confirmLogout() {
+  currentUser=null;
+  localStorage.removeItem('ktz-user');
+  closeModal('logoutModal');
+  el('shell').style.display='none';
+  el('authScreen').style.display='flex';
+  ['loginUser','loginPass','regName','regEmail','regPass'].forEach(id=>el(id).value='');
+  resetErrors();
+  switchForm('login');
+}
+function toggleAuthTheme(){setTheme(state.theme==='dark'?'light':'dark');}
+
+function setTheme(theme) {
+  state.theme=theme;
+  document.documentElement.setAttribute('data-theme',theme);
+  if (tileLayer) tileLayer.setUrl(theme==='dark'?DARK_TILE:LIGHT_TILE);
+  localStorage.setItem('ktz-theme',theme);
+}
+
+function setLang(lang) {
+  state.lang=lang;
+  document.documentElement.lang=lang;
+  localStorage.setItem('ktz-lang',lang);
+  document.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('active',b.dataset.lang===lang));
+  applyTranslations();
+  buildTrainList();
+  updateSelectedDetail();
+  if (map) markers.forEach((m,i)=>{if(m)m.setPopupContent(popupHtml(trains[i]));});
+}
+
+function applyTranslations() {
+  const l=state.lang, d=i18n[l];
+  const ids = {
+    tabHome:'tabHome', tabTracker:'tabTracker', tabCabin:'tabCabin', tabReplay:'tabReplay', themeLabel:'themeLabel', brandSub:'brandSub',
+    homeKicker:'homeKicker', homeTitle:'homeTitle',
+    m1Title:'m1Title', m1Text:'m1Text', m2Title:'m2Title', m2Text:'m2Text', m3Title:'m3Title', m3Text:'m3Text',
+    panelTitle:'panelTitle', detailTitle:'detailTitle',
+    lblSpeed:'lblSpeed', lblHealth:'lblHealth', lblFuel:'lblFuel', lblTemp:'lblTemp',
+    focusBtn:'focusBtn', detailBtn:'detailBtn', trackerNote:'trackerNote',
+    overlayTrains:'overlayTrains', overlayUpdateLabel:'overlayUpdate', lastUpdate:'lastUpdate',
+    authLoginTitle:'authLoginTitle', btnLogin:'btnLogin', linkToReg:'linkToReg',
+    authRegTitle:'authRegTitle', btnRegister:'btnRegister', linkToLogin:'linkToLogin',
+    supportTitle:'supportTitle', supportSubtitle:'supportSubtitle',
+    stBugTitle:'stBugTitle', stBugText:'stBugText',
+    stAccessTitle:'stAccessTitle', stAccessText:'stAccessText',
+    stDataTitle:'stDataTitle', stDataText:'stDataText',
+    stOtherTitle:'stOtherTitle', stOtherText:'stOtherText',
+    btnBack:'btnBack', btnSend:'btnSend',
+    logoutTitle:'logoutTitle', logoutDesc:'logoutDesc',
+    btnConfirmLogout:'btnConfirmLogout', btnCancelLogout:'btnCancelLogout'
+  };
+  for (const [id, key] of Object.entries(ids)) {
+    const node = el(id);
+    if (!node) continue;
+    if (key==='homeTitle'||key==='homeText') node[key==='homeText'?'innerHTML':'textContent'] = d[key];
+    else node.textContent = d[key];
+  }
+  el('homeText').innerHTML = d.homeText;
+  el('searchInput').placeholder = d.searchPH;
+  el('supportBtn').title = d.supportBtnTitle;
+  el('logoutBtn').title = d.logoutBtnTitle;
+}
+
+function setTab(name) {
+  state.activeTab=name;
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  const viewMap={home:'homeView',tracker:'trackerView',cabin:'cabinView',replay:'replayView'};
+  el(viewMap[name]||'homeView').classList.add('active');
+  const tabEl = document.querySelector(`.tab[data-tab="${name}"]`);
+  if (tabEl) tabEl.classList.add('active');
+  if (name==='tracker'&&map) setTimeout(()=>map.invalidateSize(),0);
+  if (name==='cabin') { buildLocoSelector(); updateCabin(); }
+  if (name==='replay') { buildReplayLocoSelector(); initReplayData(); renderReplay(); }
+}
+
+
+function buildLocoSelector() {
+  const el2 = el('locoSelector');
+  if (!el2) return;
+  el2.innerHTML = trains.map((tr,i)=>`<button class="loco-btn${i===cabinIdx?' active':''}" onclick="setCabinLoco(${i})">${tr.id}</button>`).join('');
+}
+function buildReplayLocoSelector() {
+  const el2 = el('replayLocoSelector');
+  if (!el2) return;
+  el2.innerHTML = trains.map((tr,i)=>`<button class="loco-btn${i===replayLocoIdx?' active':''}" onclick="setReplayLoco(${i})">${tr.id}</button>`).join('');
+}
+function setCabinLoco(i) { cabinIdx=i; buildLocoSelector(); speedHistory.fill(trains[i].speed); tempHistory.fill(trains[i].temp); updateCabin(); }
+function setReplayLoco(i) { replayLocoIdx=i; buildReplayLocoSelector(); initReplayData(); replayIdx=0; el('replaySlider').value=0; renderReplay(); }
+
+function updateCabin() {
+  const tr = trains[cabinIdx];
+  if (!tr) return;
+  const hc = tr.health>=80?'var(--success)':tr.health>=60?'var(--warn)':'var(--danger)';
+  const grade = tr.health>=80?'A — Норма':tr.health>=60?'B — Внимание':tr.health>=40?'C — Риск':'D — Критично';
+  const ring = el('ringFill');
+  if (ring) { const offset = 314*(1-tr.health/100); ring.style.strokeDashoffset=offset; ring.style.stroke=hc; }
+  setText('ringVal',tr.health+'%');
+  setText('ringGrade',grade);
+  const gradeEl = el('ringGrade');
+  if (gradeEl) gradeEl.style.fill=hc;
+  setText('cbModel',tr.model||tr.id);
+  setText('cbRoute',tr.route);
+  setText('cbProgress',Math.round(tr.pct*100)+'%');
+  const fuelC = tr.fuel<30?'var(--danger)':tr.fuel<50?'var(--warn)':'var(--accent)';
+  setText('cbFuel',tr.fuel+'%');
+  setStyle('cbFuel','color',fuelC);
+  setWidth('cbFuelBar',tr.fuel);
+  setText('cbFuelRate',tr.model==='KZ8A'||tr.model==='ВЛ60'||tr.model==='KZ8A'?'электро':tr.fuelRate+' л/ч');
+  setText('cbVoltage',tr.voltage+' В');
+  setText('cbCurrent',tr.current+' А');
+  setText('cbPower',tr.power+' кВт');
+  const tec = tr.temp>95?'var(--danger)':tr.temp>85?'var(--warn)':'var(--success)';
+  setText('cbTempEng',tr.temp+'°C'); setStyle('cbTempEng','color',tec);
+  setText('cbTempOil',tr.tempOil+'°C');
+  setText('cbTempCool',tr.tempCool+'°C');
+  setText('cbTempMotor',tr.tempMotor?tr.tempMotor+'°C':'—');
+  const spC = tr.speed>150?'var(--accent2)':tr.speed>100?'var(--accent)':'var(--text)';
+  setText('cbSpeed',tr.speed);
+  setStyle('cbSpeed','color',spC);
+  setText('cbSpeedSub',tr.route+' · '+tr.kmDone+'/'+tr.kmTotal+' км');
+  setText('cbPressBrake',tr.pressBrake.toFixed(1));
+  setText('cbPressMain',tr.pressMain.toFixed(1));
+  setText('cbPressMag',tr.pressMag.toFixed(1));
+  setText('cbPressOil',tr.pressOil.toFixed(1));
+  setText('cbWheelWear',tr.wheelWear+'%');
+  setText('cbVibration',tr.vibration.toFixed(1));
+  setText('cbMileage',tr.mileage.toFixed(1));
+  setText('cbAxleLoad',tr.axleLoad+' кН');
+  const sysEl = el('cbSystems');
+  if (sysEl) {
+    const sys=[{icon:'🛞',name:'Тормоза',v:tr.brakes},{icon:'⚙️',name:'Двигатель',v:tr.engine},{icon:'⚡',name:'Электрика',v:tr.electro},{icon:'🌡',name:'Компрессор',v:tr.compressor},{icon:'🔩',name:'Ось',v:tr.axle},{icon:'🪟',name:'Кабина',v:tr.cabin}];
+    sysEl.innerHTML=sys.map(s=>{const c=s.v>=80?'var(--success)':s.v>=60?'var(--warn)':'var(--danger)';return`<div class="sys-cell"><div class="sys-icon">${s.icon}</div><div class="sys-name">${s.name}</div><div class="sys-val" style="color:${c}">${s.v}%</div><div class="sys-bar"><div class="sys-bar-fill" style="width:${s.v}%;background:${c}"></div></div></div>`;}).join('');
+  }
+  const alertEl = el('cbAlerts');
+  if (alertEl) {
+    if (!tr.faults||!tr.faults.length) { alertEl.innerHTML=`<div class="alert-item alert-ok"><div class="alert-dot"></div><span>Неисправностей не обнаружено</span></div>`; }
+    else { alertEl.innerHTML=tr.faults.map(f=>`<div class="alert-item alert-${f.level}"><div class="alert-dot"></div><div><span class="fault-code${f.level==='warn'?' fault-warn-code':''}">${f.code}</span> ${f.msg}</div></div>`).join(''); }
+  }
+  speedHistory.push(tr.speed); speedHistory.shift();
+  tempHistory.push(tr.temp); tempHistory.shift();
+  drawSparkline('speedChart', speedHistory, 'rgba(0,153,255,0.8)', 0, 200);
+  drawSparkline('tempChart', tempHistory, 'rgba(239,68,68,0.8)', 50, 130);
+}
+
+function setText(id,val){const n=el(id);if(n)n.textContent=val;}
+function setStyle(id,prop,val){const n=el(id);if(n)n.style[prop]=val;}
+function setWidth(id,pct){const n=el(id);if(n)n.style.width=pct+'%';}
+
+function drawSparkline(canvasId, data, color, minV, maxV) {
+  const canvas = el(canvasId);
+  if (!canvas) return;
+  const dpr = window.devicePixelRatio||1;
+  const w = canvas.offsetWidth||300, h = 70;
+  canvas.width = w*dpr; canvas.height = h*dpr;
+  canvas.style.width=w+'px'; canvas.style.height=h+'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,w,h);
+  const pad=4, grd=ctx.createLinearGradient(0,0,0,h);
+  grd.addColorStop(0,color.replace('0.8','0.25')); grd.addColorStop(1,'transparent');
+  ctx.beginPath();
+  data.forEach((v,i)=>{
+    const x=pad+(i/(data.length-1))*(w-pad*2);
+    const y=h-pad-((v-minV)/(maxV-minV))*(h-pad*2);
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  });
+  ctx.strokeStyle=color; ctx.lineWidth=2; ctx.stroke();
+  ctx.lineTo(w-pad,h); ctx.lineTo(pad,h); ctx.closePath();
+  ctx.fillStyle=grd; ctx.fill();
+  const isDark=state.theme==='dark';
+  ctx.strokeStyle=isDark?'rgba(255,255,255,0.05)':'rgba(0,0,0,0.05)';
+  ctx.lineWidth=1;
+  for(let i=0;i<4;i++){const y=pad+i*((h-pad*2)/3);ctx.beginPath();ctx.moveTo(pad,y);ctx.lineTo(w-pad,y);ctx.stroke();}
+}
+
+function initReplayData() {
+  replayData.length=0;
+  const tr=trains[replayLocoIdx];
+  for(let i=0;i<600;i++){
+    const noise=(x,a=2)=>Math.round(x+(Math.random()-0.5)*a);
+    replayData.push({speed:clamp(noise(tr.speed,6),30,200),temp:clamp(noise(tr.temp,3),60,115),fuel:clamp(tr.fuel-i*0.015,0,100),health:clamp(noise(tr.health,1),0,100),voltage:noise(tr.voltage,20),current:noise(tr.current,30)});
+  }
+}
+
+function renderReplay() {
+  const tr=trains[replayLocoIdx];
+  const d=replayData[replayIdx]||replayData[0];
+  if(!d)return;
+  const totalSec=replayData.length;
+  const elapsed=replayIdx;
+  const mm=String(Math.floor((totalSec-elapsed)/60)).padStart(2,'0');
+  const ss=String((totalSec-elapsed)%60).padStart(2,'0');
+  setText('replayTime',`-${mm}:${ss}`);
+  const stats=[
+    {lbl:'Скорость',val:(d.speed)+(tr.model==='KZ8A'||tr.model==='ВЛ60'?'':' ')+'км/ч',col:'var(--accent2)'},
+    {lbl:'Health Index',val:d.health+'%',col:d.health>=80?'var(--success)':d.health>=60?'var(--warn)':'var(--danger)'},
+    {lbl:'Температура',val:d.temp+'°C',col:d.temp>95?'var(--danger)':d.temp>85?'var(--warn)':'var(--success)'},
+    {lbl:'Топливо/Энергия',val:(tr.fuelRate?d.fuel.toFixed(0)+'%':'⚡ '+d.voltage+'В'),col:'var(--warn)'}
+  ];
+  const rs=el('replayStats');
+  if(rs) rs.innerHTML=stats.map(s=>`<div class="cabin-panel gauge-item"><div class="gauge-val" style="color:${s.col}">${s.val}</div><div class="gauge-lbl">${s.lbl}</div></div>`).join('');
+  drawReplayChart();
+  const logEl=el('replayLog');
+  if(logEl){
+    const events=tr.logs.map(lg=>`<div class="log-row"><span class="log-time">${lg.time}</span><span class="log-${lg.type}">${lg.msg}</span></div>`).join('');
+    logEl.innerHTML=events||'<div class="log-row"><span style="color:var(--muted)">Событий нет</span></div>';
+  }
+}
+
+function drawReplayChart() {
+  const canvas=el('replayChart');
+  if(!canvas)return;
+  const dpr=window.devicePixelRatio||1;
+  const w=canvas.offsetWidth||800,h=140;
+  canvas.width=w*dpr;canvas.height=h*dpr;
+  canvas.style.width=w+'px';canvas.style.height=h+'px';
+  const ctx=canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,w,h);
+  const start=Math.max(0,replayIdx-120),end=replayIdx+1;
+  const seg=replayData.slice(start,end);
+  if(seg.length<2)return;
+  const pad=8;
+  [[seg.map(d=>d.speed),0,200,'rgba(0,153,255,0.8)'],[seg.map(d=>d.temp),50,130,'rgba(239,68,68,0.75)']].forEach(([vals,mn,mx,col])=>{
+    ctx.beginPath();
+    vals.forEach((v,i)=>{const x=pad+(i/(seg.length-1))*(w-pad*2);const y=h-pad-((v-mn)/(mx-mn))*(h-pad*2);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
+    ctx.strokeStyle=col;ctx.lineWidth=2;ctx.stroke();
+  });
+  const isDark=state.theme==='dark';
+  ctx.strokeStyle=isDark?'rgba(255,255,255,0.04)':'rgba(0,0,0,0.04)';
+  ctx.lineWidth=1;
+  for(let i=0;i<5;i++){const y=pad+i*((h-pad*2)/4);ctx.beginPath();ctx.moveTo(pad,y);ctx.lineTo(w-pad,y);ctx.stroke();}
+}
+
+function toggleReplay(){
+  replayPlaying=!replayPlaying;
+  const btn=el('replayPlayBtn');
+  if(btn)btn.textContent=replayPlaying?'⏸':'▶';
+  if(replayPlaying){
+    clearInterval(replayTimer);
+    replayTimer=setInterval(()=>{
+      if(!replayPlaying)return;
+      replayIdx=Math.min(replayIdx+replaySpeed,replayData.length-1);
+      el('replaySlider').value=replayIdx;
+      renderReplay();
+      if(replayIdx>=replayData.length-1){replayPlaying=false;if(btn)btn.textContent='▶';}
+    },200);
+  } else { clearInterval(replayTimer); }
+}
+function replaySeek(v){replayIdx=parseInt(v);renderReplay();}
+function replayStepBack(){replayIdx=Math.max(0,replayIdx-30);el('replaySlider').value=replayIdx;renderReplay();}
+function replayStepFwd(){replayIdx=Math.min(replayData.length-1,replayIdx+30);el('replaySlider').value=replayIdx;renderReplay();}
+function cycleReplaySpeed(){const speeds=[1,2,5,10];const i=speeds.indexOf(replaySpeed);replaySpeed=speeds[(i+1)%speeds.length];setText('replaySpeedVal',replaySpeed);}
+
+document.querySelectorAll('.tab').forEach(btn=>btn.addEventListener('click',()=>setTab(btn.dataset.tab)));
+document.querySelectorAll('.lang-btn').forEach(btn=>btn.addEventListener('click',()=>setLang(btn.dataset.lang)));
+el('themeBtn').addEventListener('click',()=>setTheme(state.theme==='dark'?'light':'dark'));
+el('searchInput').addEventListener('input',buildTrainList);
+el('focusBtn').addEventListener('click',()=>selectTrain(selectedIdx));
+
+const savedTheme=localStorage.getItem('ktz-theme');
+const savedLang=localStorage.getItem('ktz-lang');
+if (savedTheme==='light'||savedTheme==='dark') state.theme=savedTheme;
+if (savedLang==='ru'||savedLang==='en') state.lang=savedLang;
+
+setTheme(state.theme);
+setLang(state.lang);
+setTab('home');
+</script>
+<script>
+(() => {
+  const API_URL = window.__KTZ_API_URL__ || 'http://127.0.0.1:8000';
+  const ROLE_COLORS = {
+    'Пассажир': '#0099ff',
+    'Машинист': '#22c55e',
+    'Руководитель': '#ef4444'
+  };
+  const ROLE_ACCESS = {
+    'Пассажир': 'Просмотр рейсов и маршрутов',
+    'Машинист': 'Только свой поезд и его кабина',
+    'Руководитель': 'Полный доступ ко всем рейсам'
+  };
+  let syncTimer = null;
+
+  const original = {
+    setTab: window.setTab,
+    buildTrainList: window.buildTrainList,
+    updateSelectedDetail: window.updateSelectedDetail,
+    openDetailModal: window.openDetailModal,
+    updateTrains: window.updateTrains,
+    buildLocoSelector: window.buildLocoSelector,
+    buildReplayLocoSelector: window.buildReplayLocoSelector,
+    setCabinLoco: window.setCabinLoco,
+    setReplayLoco: window.setReplayLoco,
+    updateCabin: window.updateCabin,
+    popupHtml: window.popupHtml,
+    confirmLogout: window.confirmLogout,
+    handleLogin: window.handleLogin,
+    handleRegister: window.handleRegister,
+    loginAs: window.loginAs
+  };
+
+  const elById = (id) => document.getElementById(id);
+  const getRole = () => currentUser?.role || 'Пассажир';
+  const isPassenger = () => getRole() === 'Пассажир';
+  const isMachinist = () => getRole() === 'Машинист';
+  const isManager = () => getRole() === 'Руководитель';
+  const roleColor = () => ROLE_COLORS[getRole()] || ROLE_COLORS['Пассажир'];
+  const getName = () => currentUser?.full_name || currentUser?.name || 'Пользователь';
+  const getEmail = () => currentUser?.email || '';
+  const getAssignedTrain = () => currentUser?.assigned_train || currentUser?.train_code || currentUser?.train || '';
+  const getAssignedIdx = () => {
+    const assigned = getAssignedTrain();
+    if (!assigned) return -1;
+    return trains.findIndex(tr => tr.id === assigned || tr.train_code === assigned);
+  };
+  const initials = (name) => name.split(/\s+/).filter(Boolean).map(w => w[0]).join('').toUpperCase().slice(0, 2) || 'U';
+
+  function accessibleEntries() {
+    const assignedIdx = getAssignedIdx();
+    const all = trains.map((tr, idx) => ({ tr, idx }));
+    if (isMachinist() && assignedIdx >= 0) return all.filter(x => x.idx === assignedIdx);
+    return all;
+  }
+
+  function updateNavbar() {
+    const pill = elById('userPill');
+    const avatar = elById('userAvatar');
+    const name = elById('userNameDisplay');
+    if (!pill || !avatar || !name || !currentUser) return;
+
+    const color = roleColor();
+    avatar.textContent = initials(getName());
+    avatar.style.background = color;
+    avatar.style.color = '#fff';
+    pill.style.borderColor = color + '88';
+    pill.style.boxShadow = `0 0 0 1px ${color}22 inset`;
+    name.textContent = getName().split(' ')[0] || getName();
+    const cabinTab = elById('tabCabin');
+    if (cabinTab) cabinTab.style.display = isPassenger() ? 'none' : '';
+
+    const profileAvatar = elById('profileAvatar');
+    const profileName = elById('profileName');
+    const profileEmail = elById('profileEmail');
+    const profileStatus = elById('profileStatus');
+    const profileRole = elById('profileRole');
+    const profileTrain = elById('profileTrain');
+    const profileAccess = elById('profileAccess');
+    const profileChip = elById('profileRoleChip');
+
+    if (profileAvatar) { profileAvatar.textContent = initials(getName()); profileAvatar.style.background = color; profileAvatar.style.color = '#fff'; }
+    if (profileName) profileName.textContent = getName();
+    if (profileEmail) profileEmail.textContent = getEmail() || '—';
+    if (profileStatus) { profileStatus.textContent = getRole(); profileStatus.style.color = color; }
+    if (profileRole) { profileRole.textContent = getRole(); profileRole.style.color = color; }
+    if (profileTrain) profileTrain.textContent = getAssignedTrain() || 'Не назначен';
+    if (profileAccess) profileAccess.textContent = ROLE_ACCESS[getRole()] || '—';
+    if (profileChip) { profileChip.textContent = getRole(); profileChip.style.borderColor = color + '66'; profileChip.style.color = color; }
+  }
+
+  function syncMapVisibility() {
+    if (!map || !markers || !routeLines) return;
+    const visible = new Set(accessibleEntries().map(x => x.idx));
+    trains.forEach((tr, idx) => {
+      const shouldShow = isManager() || isPassenger() || visible.has(idx);
+      const line = routeLines[idx];
+      const marker = markers[idx];
+      if (line) {
+        if (shouldShow) {
+          if (!map.hasLayer(line)) line.addTo(map);
+        } else if (map.hasLayer(line)) {
+          map.removeLayer(line);
+        }
+      }
+      if (marker) {
+        if (shouldShow) {
+          marker.setPopupContent(window.popupHtml(tr));
+          if (!map.hasLayer(marker)) marker.addTo(map);
+        } else if (map.hasLayer(marker)) {
+          map.removeLayer(marker);
+        }
+      }
+    });
+  }
+
+  window.popupHtml = function(tr) {
+    if (isPassenger()) {
+      const parts = String(tr.route || '').split(' → ');
+      return `
+        <div class="popup-id">${tr.id}</div>
+        <div class="popup-route">${tr.route}</div>
+        <div class="popup-row"><span class="popup-key">Откуда</span><span class="popup-val">${parts[0] || '—'}</span></div>
+        <div class="popup-row"><span class="popup-key">Куда</span><span class="popup-val">${parts[1] || '—'}</span></div>`;
+    }
+    const healthLabel = tr.health >= 80 ? 'Норма' : tr.health >= 60 ? 'Внимание' : 'Критично';
+    return `
+      <div class="popup-id">${tr.id}</div>
+      <div class="popup-route">${tr.route}</div>
+      <div class="popup-row"><span class="popup-key">Скорость</span><span class="popup-val">${tr.speed} км/ч</span></div>
+      <div class="popup-row"><span class="popup-key">Здоровье</span><span class="popup-val">${tr.health}% / ${healthLabel}</span></div>
+      <div class="popup-row"><span class="popup-key">Топливо</span><span class="popup-val">${tr.fuel}%</span></div>`;
+  };
+
+  window.buildTrainList = function() {
+    const list = elById('trainList');
+    const search = elById('searchInput');
+    if (!list || !search) return;
+    const q = search.value.trim().toLowerCase();
+    const entries = accessibleEntries().filter(({ tr }) => {
+      if (!q) return true;
+      return [tr.id, tr.route, tr.routeKey, tr.model].some(v => String(v || '').toLowerCase().includes(q));
+    });
+    list.innerHTML = '';
+    elById('overlayCount').textContent = String(entries.length);
+    if (!entries.length) {
+      list.innerHTML = `<div class="small" style="padding:8px 4px;">${t('searchEmpty')}</div>`;
+      return;
+    }
+    entries.forEach(({ tr, idx }) => {
+      const card = document.createElement('div');
+      card.className = 'train-card' + (idx === selectedIdx ? ' active' : '');
+      const pct = Math.round((tr.pct || 0) * 100);
+      if (isPassenger()) {
+        card.innerHTML = `<div class="row1"><div class="id">${tr.id}</div><div class="health" style="color:${tr.color}">${tr.route}</div></div><div class="route">${tr.route}</div>`;
+      } else {
+        card.innerHTML = `<div class="row1"><div class="id">${tr.id}</div><div class="health" style="color:${tr.color}">${tr.health}% / ${healthText(tr.health)}</div></div><div class="route">${tr.route} · км ${tr.kmDone}/${tr.kmTotal}</div><div class="bar"><div class="fill" style="width:${pct}%;background:${tr.color}"></div></div>`;
+      }
+      card.addEventListener('click', () => window.selectTrain(idx));
+      list.appendChild(card);
+    });
+  };
+
+  window.selectTrain = function(idx) {
+    selectedIdx = idx;
+    if (original.selectTrain) original.selectTrain(idx);
+    window.updateSelectedDetail();
+  };
+
+  window.updateSelectedDetail = function() {
+    const tr = trains[selectedIdx];
+    if (!tr) return;
+    const detailGrid = elById('detailPanel')?.querySelector('.mini-grid');
+    const detailBtn = elById('detailBtn');
+    const focusBtn = elById('focusBtn');
+    elById('detailId').textContent = isPassenger() ? tr.route : tr.id;
+    elById('detailRoute').textContent = isPassenger() ? `${tr.route}` : `${tr.route} · км ${tr.kmDone} / ${tr.kmTotal}`;
+    if (isPassenger()) {
+      if (detailGrid) detailGrid.style.display = 'none';
+      if (detailBtn) detailBtn.style.display = 'none';
+      if (focusBtn) focusBtn.textContent = 'На карте';
+      elById('detailTitle').textContent = '// маршрут рейса';
+      elById('dSpd').textContent = tr.route.split(' → ')[0] || '—';
+      elById('dHealth').textContent = tr.route.split(' → ')[1] || '—';
+      elById('dFuel').textContent = 'Маршрут';
+      elById('dTemp').textContent = 'Рейс';
+    } else {
+      if (detailGrid) detailGrid.style.display = '';
+      if (detailBtn) detailBtn.style.display = '';
+      elById('detailTitle').textContent = '// выбранный локомотив';
+      elById('dSpd').textContent = `${tr.speed} ${i18n[state.lang].kmh}`;
+      elById('dHealth').textContent = `${tr.health}%`;
+      elById('dFuel').textContent = `${tr.fuel}%`;
+      elById('dTemp').textContent = `${tr.temp}°C`;
+    }
+    if (markers?.[selectedIdx]) markers[selectedIdx].openPopup();
+  };
+
+  window.openDetailModal = function() {
+    const tr = trains[selectedIdx];
+    if (!tr) return;
+    if (!isPassenger() && original.openDetailModal) {
+      original.openDetailModal();
+      return;
+    }
+    const parts = String(tr.route || '').split(' → ');
+    elById('dmId').textContent = tr.id;
+    elById('dmRoute').textContent = tr.route;
+    elById('dmBody').innerHTML = `
+      <div class="dm-section">
+        <div class="dm-section-title">Маршрут</div>
+        <div class="dm-grid">
+          <div class="dm-stat"><div class="dm-stat-lbl">Откуда</div><div class="dm-stat-val">${parts[0] || '—'}</div></div>
+          <div class="dm-stat"><div class="dm-stat-lbl">Куда</div><div class="dm-stat-val">${parts[1] || '—'}</div></div>
+          <div class="dm-stat"><div class="dm-stat-lbl">Рейс</div><div class="dm-stat-val">${tr.id}</div></div>
+        </div>
+      </div>`;
+    openModal('detailModal');
+  };
+
+  window.buildLocoSelector = function() {
+    const wrap = elById('locoSelector');
+    if (!wrap) return;
+    const entries = accessibleEntries();
+    wrap.innerHTML = entries.map(({ tr, idx }) => `<button class="loco-btn${idx === cabinIdx ? ' active' : ''}" onclick="setCabinLoco(${idx})">${tr.id}</button>`).join('');
+  };
+
+  window.setCabinLoco = function(idx) {
+    cabinIdx = idx;
+    if (original.setCabinLoco) original.setCabinLoco(idx);
+    if (!isPassenger()) window.updateCabin();
+  };
+
+  window.buildReplayLocoSelector = function() {
+    const wrap = elById('replayLocoSelector');
+    if (!wrap) return;
+    const entries = accessibleEntries();
+    wrap.innerHTML = entries.map(({ tr, idx }) => `<button class="loco-btn${idx === replayLocoIdx ? ' active' : ''}" onclick="setReplayLoco(${idx})">${tr.id}</button>`).join('');
+  };
+
+  window.setReplayLoco = function(idx) {
+    replayLocoIdx = idx;
+    if (original.setReplayLoco) original.setReplayLoco(idx);
+  };
+
+  window.updateCabin = function() {
+    if (isPassenger()) return;
+    if (original.updateCabin) original.updateCabin();
+  };
+
+  window.setTab = function(name) {
+    if (isPassenger() && name === 'cabin') name = 'tracker';
+    if (original.setTab) original.setTab(name);
+    if (name === 'tracker') {
+      syncMapVisibility();
+      window.buildTrainList();
+      window.updateSelectedDetail();
+    }
+    if (name === 'cabin' && !isPassenger()) {
+      window.buildLocoSelector();
+      window.updateCabin();
+    }
+    if (name === 'replay') {
+      window.buildReplayLocoSelector();
+      if (typeof initReplayData === 'function') initReplayData();
+      if (typeof renderReplay === 'function') renderReplay();
+    }
+  };
+
+  window.updateTrains = function() {
+    if (original.updateTrains) original.updateTrains();
+    syncMapVisibility();
+    window.buildTrainList();
+    window.updateSelectedDetail();
+    if (!isPassenger()) window.updateCabin();
+  };
+
+  window.handleLogin = async function() {
+    const user = elById('loginUser');
+    const pass = elById('loginPass');
+    const err = elById('loginError');
+    resetErrors();
+    if (!user.value.trim() || !pass.value.trim()) {
+      showError(err, [user, pass], t('loginErrorMsg'));
+      return;
+    }
+    try {
+      const body = new URLSearchParams();
+      body.set('username', user.value.trim());
+      body.set('password', pass.value);
+      const res = await fetch(`${API_URL}/auth/login`, { method: 'POST', body });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Login failed');
+      localStorage.setItem('ktz-token', data.access_token);
+      await bootstrapSession();
+    } catch (e) {
+      showError(err, [user, pass], e.message || 'Ошибка входа');
+    }
+  };
+
+  window.handleRegister = async function() {
+    const name = elById('regName');
+    const email = elById('regEmail');
+    const pass = elById('regPass');
+    const err = elById('regError');
+    resetErrors();
+    if (!name.value.trim()) { showError(err, [name], t('regErrorName')); return; }
+    if (!email.value.includes('@')) { showError(err, [email], t('regErrorEmail')); return; }
+    if (pass.value.length < 6) { showError(err, [pass], t('regErrorPass')); return; }
+    try {
+      const res = await fetch(`${API_URL}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ full_name: name.value.trim(), email: email.value.trim(), password: pass.value })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || 'Registration failed');
+      elById('loginUser').value = email.value.trim();
+      elById('loginPass').value = pass.value;
+      switchForm('login');
+      await window.handleLogin();
+    } catch (e) {
+      showError(err, [name, email, pass], e.message || 'Ошибка регистрации');
+    }
+  };
+
+  window.confirmLogout = function() {
+    currentUser = null;
+    localStorage.removeItem('ktz-token');
+    localStorage.removeItem('ktz-user');
+    if (syncTimer) {
+      clearInterval(syncTimer);
+      syncTimer = null;
+    }
+    closeModal('logoutModal');
+    elById('shell').style.display = 'none';
+    elById('authScreen').style.display = 'flex';
+    ['loginUser','loginPass','regName','regEmail','regPass'].forEach(id => { const n = elById(id); if (n) n.value = ''; });
+    resetErrors();
+    switchForm('login');
+  };
+
+  window.openProfile = function() {
+    if (!currentUser) return;
+    updateNavbar();
+    openModal('profileModal');
+  };
+
+  async function bootstrapSession() {
+    const token = localStorage.getItem('ktz-token');
+    if (!token) {
+      currentUser = null;
+      elById('shell').style.display = 'none';
+      elById('authScreen').style.display = 'flex';
+      return;
+    }
+    try {
+      const res = await fetch(`${API_URL}/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Session expired');
+      currentUser = data;
+      elById('authScreen').style.display = 'none';
+      elById('shell').style.display = 'flex';
+      updateNavbar();
+      if (!map && typeof initMap === 'function') initMap();
+      setTimeout(() => { if (map) map.invalidateSize(); }, 250);
+      selectedIdx = isMachinist() ? Math.max(getAssignedIdx(), 0) : 0;
+      cabinIdx = selectedIdx;
+      syncMapVisibility();
+      window.buildTrainList();
+      window.updateSelectedDetail();
+      window.buildLocoSelector();
+      window.buildReplayLocoSelector();
+      if (!syncTimer) syncTimer = setInterval(() => window.updateTrains(), 1800);
+    } catch (e) {
+      localStorage.removeItem('ktz-token');
+      currentUser = null;
+      elById('shell').style.display = 'none';
+      elById('authScreen').style.display = 'flex';
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const pill = elById('userPill');
+    if (pill) {
+      pill.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          window.openProfile();
+        }
+      });
+    }
+    bootstrapSession();
+  });
+})();
+</script>
+</body>
+</html>
